@@ -35,23 +35,29 @@
         -x 10 -y 76 -z 65
   #####################################################################
 """
+
 import argparse
 import nibabel
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.optimize as optimize
-from numba import jit
+from scipy import ndimage
 
 
-def computeOptWeights(P,P_j,i):
-    num_example=P_j.shape[1]
-    w=np.zeros([num_example])
-    Z=np.zeros(P_j.shape)
-    b=np.ones([num_example])
+def computeOptWeights(P,P_j,reg=1e-06):
+    Pw=P.copy()
+    Pw_j=P_j.copy()
+    num_example=Pw_j.shape[0]
+    w=np.zeros(num_example)
+    weights=np.zeros(num_example)
+    Z=np.zeros(Pw_j.shape)
+    b=np.ones(num_example)
     for j in range(num_example):
-        Z[:,j]=P_j[:,j]-P
-    C=np.dot(Z.transpose(1,0),Z)
+        Z[j,:]=Pw_j[j,:]-Pw
+    C=np.dot(Z,np.transpose(Z))
     trace = np.trace(C)
+    R = reg * trace if trace>0 else reg
+    C.flat[::num_example + 1] += R
     fmin = lambda x: np.linalg.norm(np.dot(C,x)-b)
     sol = optimize.minimize(fmin, np.zeros(num_example), method='L-BFGS-B', bounds=[(0.,1.) for x in xrange(num_example)])
     w = sol['x']
@@ -59,58 +65,23 @@ def computeOptWeights(P,P_j,i):
     return weights
 
 
-
-def computeNLMWeights(P,P_j,i,h):
-    num_example=P_j.shape[1]
+def computeNLMWeights(P,P_j,h):
+    Pw=P.copy()
+    Pw_j=P_j.copy()
+    num_example=Pw_j.shape[0]
     w=np.zeros([num_example])
-    dist_j=np.array([np.sum((P-P_j[:,j])**2) for j in range(num_example)]) #distance between P and P_j
+    dist_j=np.array([np.sum((Pw-Pw_j[j,:])**2) for j in range(num_example)]) #distance between Pw and Pw_j
     w=np.exp(-(dist_j/h))
     weights=w/np.sum(w)
     return weights
 
 
-@jit
 def computeSigmaNoise(img):
-    sigma2=np.float(0.0)
-    xmax=img.shape[0]
-    ymax=img.shape[1]
-    zmax=img.shape[2]
-    omega=np.float(xmax*ymax*zmax)
-
-    for ii in range(0,xmax):
-      for jj in range(0,ymax):
-        for kk in range(0,zmax):
-
-          if ii not in [0,xmax-1]:
-              Nii=[ii-1,ii+1]
-          elif ii==0:
-              Nii=[ii+1]
-          elif ii==xmax-1:
-              Nii=[ii-1]
-
-          if jj not in [0,ymax-1]:
-              Njj=[jj-1,jj+1]
-          elif jj==0:
-              Njj=[jj+1]
-          elif jj==ymax-1:
-              Njj=[jj-1]
-
-          if kk not in [0,zmax-1]:
-              Nkk=[kk-1,kk+1]
-          elif kk==0:
-              Nkk=[kk+1]
-          elif kk==zmax-1:
-              Nkk=[kk-1]
-
-          nN=np.float(len(Nii)+len(Njj)+len(Nkk))
-
-          epsilon0 = np.float(0.0)
-          for iii in Nii:
-            for jjj in Njj:
-              for kkk in Nkk:
-                epsilon0+= img[iii,jjj,kkk]
-          sigma2+=(nN/(nN+1)) * (img[ii,jj,kk] - (1/nN * epsilon0))**2
-    return sigma2/omega
+    hx=np.array([[[0.,0.,0.],[0.,-(1./6.),0.],[0.,0.,0.]],
+                    [[0.,-(1./6.),0.],[-(1./6.),1.,-(1./6.)],[0.,-(1./6.),0.]],
+                    [[0.,0.,0.],[0.,-(1./6.),0.],[0.,0.,0.]]])
+    sigma2=(6.0/7.0) * np.sum(np.square(ndimage.convolve(img,hx))) / np.float(img.shape[0]*img.shape[1]*img.shape[2])
+    return sigma2
 
 
 def extractPatches(data,i,hss,hps):
@@ -135,16 +106,15 @@ def extractPatches(data,i,hss,hps):
 
     count=0
     size_patch=(2*hps[0]+1)*(2*hps[1]+1)*(2*hps[2]+1)
-    P_j=np.zeros([size_patch,(2*hss[0]+1)*(2*hss[1]+1)*(2*hss[2]+1)-1])
-    for ii in range(xmin,xmax):
-        for jj in range(ymin,ymax):
-            for kk in range(zmin,zmax):
+    P_j=np.zeros([(2*hss[0]+1)*(2*hss[1]+1)*(2*hss[2]+1)-1,size_patch])
+    for ii in range(xmin,xmax+1):
+        for jj in range(ymin,ymax+1):
+            for kk in range(zmin,zmax+1):
                 if [ii,jj,kk]==i:
-                    P=data[i[0]-hps[0]:i[0]+hps[0]+1,i[1]-hps[1]:i[1]+hps[1]+1,i[2]-hps[2]:i[2]+hps[2]+1].reshape([size_patch])
+                    P=data[ii-hps[0]:ii+hps[0]+1,jj-hps[1]:jj+hps[1]+1,kk-hps[2]:kk+hps[2]+1].reshape([size_patch])
                 else:
-                    P_j[:,count]=data[ii-hps[0]:ii+hps[0]+1,jj-hps[1]:jj+hps[1]+1,kk-hps[2]:kk+hps[2]+1].reshape([size_patch])
+                    P_j[count,:]=data[ii-hps[0]:ii+hps[0]+1,jj-hps[1]:jj+hps[1]+1,kk-hps[2]:kk+hps[2]+1].reshape([size_patch])
                     count+=1
-
     return P,P_j
 
 
@@ -158,8 +128,8 @@ if __name__ == '__main__':
     parser.add_argument('-x', '--x', help='x location (required)', type=int, required = True)
     parser.add_argument('-y', '--y', help='y location (required)', type=int, required = True)
     parser.add_argument('-z', '--z', help='z location (required)', type=int, required = True)
-    parser.add_argument('-hss', '--hss', help='Half search area size (default)', type=int, default=3, required = False)
-    parser.add_argument('-hps', '--hps', help='Half path size', type=int, default=2, required = False)
+    parser.add_argument('-hss', '--hss', help='Half search area size (default)', type=int, default=1, required = False)
+    parser.add_argument('-hps', '--hps', help='Half path size', type=int, default=1, required = False)
 
 
     args = parser.parse_args()
@@ -189,14 +159,14 @@ if __name__ == '__main__':
     Ps,Ps_j=extractPatches(seg,vx,hss,hps)
 
     #--Compute weights--#
-    Ws_opt=computeOptWeights(Ps,Ps_j,vx)
-    Wi_opt=computeOptWeights(Pi,Pi_j,vx)
+    Ws_opt=computeOptWeights(Ps,Ps_j)
+    Wi_opt=computeOptWeights(Pi,Pi_j)
     beta=1.0
     h=np.float(2.0 * beta * (computeSigmaNoise(input)) * np.float((2*hps[0]+1)*(2*hps[1]+1)*(2*hps[2]+1)) )
-    W_nlm=computeNLMWeights(Pi,Pi_j,vx,h)
+    W_nlm=computeNLMWeights(Pi,Pi_j,h)
 
     #--Compute loss--#
-    num_example=Pi_j.shape[1]
+    num_example=Pi_j.shape[0]
     Ps_i=np.zeros(Pi.shape)
     Ps_s=np.zeros(Pi.shape)
     Pi_i=np.zeros(Pi.shape)
@@ -204,18 +174,20 @@ if __name__ == '__main__':
     Pnlm_i=np.zeros(Pi.shape)
     Pnlm_s=np.zeros(Pi.shape)
     for j in range(num_example):
-        Ps_i+=Ws_opt[j]*Pi_j[:,j]
-        Ps_s+=Ws_opt[j]*Ps_j[:,j]
-        Pi_i+=Wi_opt[j]*Pi_j[:,j]
-        Pi_s+=Wi_opt[j]*Ps_j[:,j]
-        Pnlm_i+=W_nlm[j]*Pi_j[:,j]
-        Pnlm_s+=W_nlm[j]*Ps_j[:,j]
-    loss_Ps_i=np.linalg.norm(Ps_i-Pi)
-    loss_Ps_s=np.linalg.norm(Ps_s-Ps)
-    loss_Pi_i=np.linalg.norm(Pi_i-Pi)
-    loss_Pi_s=np.linalg.norm(Pi_s-Ps)
-    loss_Pnlm_i=np.linalg.norm(Pnlm_i-Pi)
-    loss_Pnlm_s=np.linalg.norm(Pnlm_s-Ps)
+        Ps_i+=Ws_opt[j]*Pi_j[j,:]
+        Ps_s+=Ws_opt[j]*Ps_j[j,:]
+        Pi_i+=Wi_opt[j]*Pi_j[j,:]
+        Pi_s+=Wi_opt[j]*Ps_j[j,:]
+        Pnlm_i+=W_nlm[j]*Pi_j[j,:]
+        Pnlm_s+=W_nlm[j]*Ps_j[j,:]
+    loss_Ps_i=np.linalg.norm(Ps_i-Pi)/np.float(num_example)
+    loss_Ps_s=np.linalg.norm(Ps_s-Ps)/np.float(num_example)
+    loss_Pi_i=np.linalg.norm(Pi_i-Pi)/np.float(num_example)
+    loss_Pi_s=np.linalg.norm(Pi_s-Ps)/np.float(num_example)
+    loss_Pnlm_i=np.linalg.norm(Pnlm_i-Pi)/np.float(num_example)
+    loss_Pnlm_s=np.linalg.norm(Pnlm_s-Ps)/np.float(num_example)
+
+    np.mean(Ps_i-Pi)**2
 
 
     ###--Show output plots--###
@@ -229,12 +201,13 @@ if __name__ == '__main__':
     Pnlm_i=Pnlm_i.reshape([(2*hps[0]+1),(2*hps[1]+1),(2*hps[2]+1)])
     Pnlm_s=Pnlm_s.reshape([(2*hps[0]+1),(2*hps[1]+1),(2*hps[2]+1)])
 
+
     sl=int(round(Ps_i.shape[2]/2))
     font={'family': 'serif','color':  'darkred','weight': 'normal','size': 16}
 
     f, axarr = plt.subplots(4, 4)
     axarr[0, 0].set_title('Int', fontdict=font)
-    cax=axarr[0, 0].imshow(np.rot90(Pi[:,:,sl]), cmap="Greys_r", interpolation='nearest')
+    axarr[0, 0].imshow(np.rot90(Pi[:,:,sl]), cmap="Greys_r", interpolation='nearest')
     axarr[0, 0].axis('off')
     axarr[0, 1].set_title('Seg', fontdict=font)
     axarr[0, 1].imshow(np.rot90(Ps[:,:,sl]), cmap="Greys_r", interpolation='nearest')
@@ -244,7 +217,7 @@ if __name__ == '__main__':
     axarr[0, 3].set_title('Loss Seg', fontdict=font)
     axarr[0, 3].axis('off')
 
-    axarr[1, 0].text(-5,sl*1.25,'Ws', fontdict=font)
+    axarr[1, 0].text(sl*(-3),sl*1.25,'Ws', fontdict=font)
     axarr[1, 0].imshow(np.rot90(Ps_i[:,:,sl]), cmap="Greys_r", interpolation='nearest')
     axarr[1, 0].axis('off')
     axarr[1, 1].imshow(np.rot90(Ps_s[:,:,sl]), cmap="Greys_r", interpolation='nearest')
@@ -254,7 +227,7 @@ if __name__ == '__main__':
     axarr[1, 3].text(sl*0.15,sl*0.2,str(round(loss_Ps_s,2)))
     axarr[1, 3].axis('off')
 
-    axarr[2, 0].text(-5,sl*1.25,'Wi', fontdict=font)
+    axarr[2, 0].text(sl*(-3),sl*1.25,'Wi', fontdict=font)
     axarr[2, 0].imshow(np.rot90(Pi_i[:,:,sl]), cmap="Greys_r", interpolation='nearest')
     axarr[2, 0].axis('off')
     axarr[2, 1].imshow(np.rot90(Pi_s[:,:,sl]), cmap="Greys_r", interpolation='nearest')
@@ -264,7 +237,7 @@ if __name__ == '__main__':
     axarr[2, 3].text(sl*0.15,sl*0.2,str(round(loss_Pi_s,2)))
     axarr[2, 3].axis('off')
 
-    axarr[3, 0].text(-5,sl*1.25,'Wnlm', fontdict=font)
+    axarr[3, 0].text(sl*(-3),sl*1.25,'Wnlm', fontdict=font)
     axarr[3, 0].imshow(np.rot90(Pnlm_i[:,:,sl]), cmap="Greys_r", interpolation='nearest')
     axarr[3, 0].axis('off')
     axarr[3, 1].imshow(np.rot90(Pnlm_s[:,:,sl]), cmap="Greys_r", interpolation='nearest')
@@ -273,5 +246,28 @@ if __name__ == '__main__':
     axarr[3, 2].axis('off')
     axarr[3, 3].text(sl*0.15,sl*0.2,str(round(loss_Pnlm_s,2)))
     axarr[3, 3].axis('off')
+
+
+    f2, axarr2 = plt.subplots(3,figsize=(3,9))
+    axarr2[0].plot(Ws_opt,Wi_opt,'go')
+    axarr2[0].plot([0,1],[0,1],'r')
+    axarr2[0].set_xlabel('Ws opt')
+    axarr2[0].set_ylabel('Wi opt')
+
+    axarr2[1].plot(Ws_opt,W_nlm,'go')
+    axarr2[1].plot([0,1],[0,1],'r')
+    axarr2[1].set_xlabel('Ws opt')
+    axarr2[1].set_ylabel('Wnlm')
+
+    axarr2[2].plot(Wi_opt,W_nlm,'go')
+    axarr2[2].plot([0,1],[0,1],'r')
+    axarr2[2].set_xlabel('Wi opt')
+    axarr2[2].set_ylabel('Wnlm')
+
+    for ax in axarr2:
+        ax.set_xlim(0, 1)
+        ax.set_ylim(0, 1)
+        ax.set(adjustable='box-forced', aspect='equal')
+
 
     plt.show()
