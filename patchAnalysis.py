@@ -44,11 +44,11 @@ import scipy.optimize as optimize
 from scipy import ndimage
 
 
-def computeOptWeights(P,P_j,reg=1e-06):
+def computeOptWeights(P,P_j,initialisation,reg=1e-03):
     Pw=P.copy()
     Pw_j=P_j.copy()
+    w=initialisation.copy()
     num_example=Pw_j.shape[0]
-    w=np.zeros(num_example)
     weights=np.zeros(num_example)
     Z=np.zeros(Pw_j.shape)
     b=np.ones(num_example)
@@ -59,7 +59,7 @@ def computeOptWeights(P,P_j,reg=1e-06):
     R = reg * trace if trace>0 else reg
     C.flat[::num_example + 1] += R
     fmin = lambda x: np.linalg.norm(np.dot(C,x)-b)
-    sol = optimize.minimize(fmin, np.zeros(num_example), method='L-BFGS-B', bounds=[(0.,1.) for x in xrange(num_example)])
+    sol = optimize.minimize(fmin, w, method='L-BFGS-B', bounds=[(0.,1.) for x in xrange(num_example)])
     w = sol['x']
     weights=w/np.sum(w)
     return weights
@@ -78,8 +78,8 @@ def computeNLMWeights(P,P_j,h):
 
 def computeSigmaNoise(img):
     hx=np.array([[[0.,0.,0.],[0.,-(1./6.),0.],[0.,0.,0.]],
-                    [[0.,-(1./6.),0.],[-(1./6.),1.,-(1./6.)],[0.,-(1./6.),0.]],
-                    [[0.,0.,0.],[0.,-(1./6.),0.],[0.,0.,0.]]])
+                [[0.,-(1./6.),0.],[-(1./6.),1.,-(1./6.)],[0.,-(1./6.),0.]],
+                [[0.,0.,0.],[0.,-(1./6.),0.],[0.,0.,0.]]])
     sigma2=(6.0/7.0) * np.sum(np.square(ndimage.convolve(img,hx))) / np.float(img.shape[0]*img.shape[1]*img.shape[2])
     return sigma2
 
@@ -110,7 +110,7 @@ def extractPatches(data,i,hss,hps):
     for ii in range(xmin,xmax+1):
         for jj in range(ymin,ymax+1):
             for kk in range(zmin,zmax+1):
-                if [ii,jj,kk]==i:
+                if (ii==i[0]) & (jj==i[1]) & (kk==i[2]):
                     P=data[ii-hps[0]:ii+hps[0]+1,jj-hps[1]:jj+hps[1]+1,kk-hps[2]:kk+hps[2]+1].reshape([size_patch])
                 else:
                     P_j[count,:]=data[ii-hps[0]:ii+hps[0]+1,jj-hps[1]:jj+hps[1]+1,kk-hps[2]:kk+hps[2]+1].reshape([size_patch])
@@ -150,7 +150,8 @@ if __name__ == '__main__':
     vx=[args.x,args.y,args.z]
     hss=[args.hss,args.hss,args.hss]
     hps=[args.hps,args.hps,args.hps]
-
+    beta=1.0
+    h=np.float(2.0 * beta * (computeSigmaNoise(input)) * np.float((2*hps[0]+1)*(2*hps[1]+1)*(2*hps[2]+1)) )
 
     ###--Compute analysis--###
 
@@ -159,11 +160,9 @@ if __name__ == '__main__':
     Ps,Ps_j=extractPatches(seg,vx,hss,hps)
 
     #--Compute weights--#
-    Ws_opt=computeOptWeights(Ps,Ps_j)
-    Wi_opt=computeOptWeights(Pi,Pi_j)
-    beta=1.0
-    h=np.float(2.0 * beta * (computeSigmaNoise(input)) * np.float((2*hps[0]+1)*(2*hps[1]+1)*(2*hps[2]+1)) )
     W_nlm=computeNLMWeights(Pi,Pi_j,h)
+    Ws_opt=computeOptWeights(Ps,Ps_j,W_nlm)
+    Wi_opt=computeOptWeights(Pi,Pi_j,W_nlm)
 
     #--Compute loss--#
     num_example=Pi_j.shape[0]
@@ -180,6 +179,7 @@ if __name__ == '__main__':
         Pi_s+=Wi_opt[j]*Ps_j[j,:]
         Pnlm_i+=W_nlm[j]*Pi_j[j,:]
         Pnlm_s+=W_nlm[j]*Ps_j[j,:]
+
     loss_Ps_i=np.linalg.norm(Ps_i-Pi)/np.float(num_example)
     loss_Ps_s=np.linalg.norm(Ps_s-Ps)/np.float(num_example)
     loss_Pi_i=np.linalg.norm(Pi_i-Pi)/np.float(num_example)
@@ -187,10 +187,17 @@ if __name__ == '__main__':
     loss_Pnlm_i=np.linalg.norm(Pnlm_i-Pi)/np.float(num_example)
     loss_Pnlm_s=np.linalg.norm(Pnlm_s-Ps)/np.float(num_example)
 
-    np.mean(Ps_i-Pi)**2
+    corr_ws_wi = np.abs(Ws_opt - Wi_opt)
+    corr_ws_wnlm = np.abs(Ws_opt - W_nlm)
+    corr_wi_wnlm = np.abs(Ws_opt - W_nlm)
 
+    corr_Ps=np.zeros(num_example)
+    corr_Pi=np.zeros(num_example)
+    for j in range(num_example):
+        corr_Ps[j]=np.corrcoef(Pi_j[j,:],Pi)[1,0]
+        corr_Pi[j]=np.corrcoef(Ps_j[j,:],Ps)[1,0]
 
-    ###--Show output plots--###
+    max_corr_y=np.ceil( np.max([corr_ws_wi,corr_ws_wnlm,corr_wi_wnlm]) *10.)/10.
 
     Pi=Pi.reshape([(2*hps[0]+1),(2*hps[1]+1),(2*hps[2]+1)])
     Ps=Ps.reshape([(2*hps[0]+1),(2*hps[1]+1),(2*hps[2]+1)])
@@ -201,6 +208,7 @@ if __name__ == '__main__':
     Pnlm_i=Pnlm_i.reshape([(2*hps[0]+1),(2*hps[1]+1),(2*hps[2]+1)])
     Pnlm_s=Pnlm_s.reshape([(2*hps[0]+1),(2*hps[1]+1),(2*hps[2]+1)])
 
+    ###--Show output plots--###
 
     sl=int(round(Ps_i.shape[2]/2))
     font={'family': 'serif','color':  'darkred','weight': 'normal','size': 16}
@@ -268,6 +276,44 @@ if __name__ == '__main__':
         ax.set_xlim(0, 1)
         ax.set_ylim(0, 1)
         ax.set(adjustable='box-forced', aspect='equal')
+
+
+    f3, axarr3 = plt.subplots(3,figsize=(3,9))
+    axarr3[0].set_title('Seg', fontdict=font)
+    axarr3[0].plot(corr_Ps,corr_ws_wi,'go')
+    axarr3[0].set_xlabel('corr_Ps')
+    axarr3[0].set_ylabel('corr_ws_wi')
+
+    axarr3[1].plot(corr_Ps,corr_ws_wnlm,'go')
+    axarr3[1].set_xlabel('corr_Ps')
+    axarr3[1].set_ylabel('corr_ws_wnlm')
+
+    axarr3[2].plot(corr_Ps,corr_wi_wnlm,'go')
+    axarr3[2].set_xlabel('corr_Ps')
+    axarr3[2].set_ylabel('corr_wi_wnlm')
+
+    for ax in axarr3:
+        ax.set_xlim(-1, 1)
+        ax.set_ylim(0, max_corr_y)
+
+
+    f4, axarr4 = plt.subplots(3,figsize=(3,9))
+    axarr4[0].set_title('Int', fontdict=font)
+    axarr4[0].plot(corr_Pi,corr_ws_wi,'go')
+    axarr4[0].set_xlabel('corr_Pi')
+    axarr4[0].set_ylabel('corr_ws_wi')
+
+    axarr4[1].plot(corr_Pi,corr_ws_wnlm,'go')
+    axarr4[1].set_xlabel('corr_Pi')
+    axarr4[1].set_ylabel('corr_ws_wnlm')
+
+    axarr4[2].plot(corr_Pi,corr_wi_wnlm,'go')
+    axarr4[2].set_xlabel('corr_Pi')
+    axarr4[2].set_ylabel('corr_wi_wnlm')
+
+    for ax in axarr4:
+        ax.set_xlim(-1, 1)
+        ax.set_ylim(0, max_corr_y)
 
 
     plt.show()
