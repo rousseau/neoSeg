@@ -50,14 +50,10 @@
 import argparse,sys,os
 import nibabel
 import numpy as np
-import matplotlib.pyplot as plt
-import scipy.optimize as optimize
-from scipy import ndimage
+from scipy import ndimage,optimize
 from time import time
 import itertools
 import multiprocessing
-import skimage.measure
-
 
 
 
