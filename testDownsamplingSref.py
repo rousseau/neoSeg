@@ -10,7 +10,7 @@ from skimage import measure
 @jit
 def downsampling(Sref,omega):
 	## Check if Sref size is divisible by 2^omega ##
-	newSizeSref=Sref.shape
+	newSizeSref=list(Sref.shape)
 	while (newSizeSref[0]%(2**omega) != 0):
 		newSizeSref[0]+=1
 	while (newSizeSref[1]%(2**omega) != 0):

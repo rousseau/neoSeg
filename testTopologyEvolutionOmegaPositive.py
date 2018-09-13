@@ -184,13 +184,13 @@ if __name__ == '__main__':
 
 
 	## Test topological evolution of Ilabel given a positive omega ##
-	typeInput='synthesis'	# or 'real'
+	typeInput='real'	# synthesis or 'real'
+	omega = 3
 	ipath='/home/carlos/Code/neoSeg'
 	opath=ipath+'/test'
 	os.system('mkdir -p '+opath)
-	IlabelFull = nibabel.load(ipath+'/examples/Ilabel.nii.gz')
+	IlabelFull = nibabel.load(ipath+'/examples/Ilabel_omega'+str(omega)+'.nii.gz')
 	Ilabel = IlabelFull.get_data().astype(int)
-	omega = 2
 	mask=np.zeros(Ilabel.shape)
 	mask[1:-1,1:-1,1:-1]=1
 	topologyList=[[3],[2],[1]]
@@ -200,11 +200,11 @@ if __name__ == '__main__':
 
 	## Downsampling Sref ##
 	if typeInput=='synthesis':
-		newSref = nibabel.load(ipath+'/examples/Sref_omega2_synthesized.nii.gz').get_data()
+		newSref = nibabel.load(ipath+'/examples/Sref_omega'+str(omega)+'_synthesized.nii.gz').get_data()
 	else:
 		SrefFull = nibabel.load(ipath+'/examples/Sref.nii.gz')
 		Sref = SrefFull.get_data()
-		newSref=downsampling(Sref,omega)
+		newSref = downsampling(Sref,omega)
 	nibabel.save(nibabel.Nifti1Image(newSref.astype(float),IlabelFull.affine),ipath+'/newSref_omega'+str(omega)+'.nii.gz')
 
 
@@ -236,6 +236,6 @@ if __name__ == '__main__':
 	nibabel.save(nibabel.Nifti1Image(benefitMap.astype(float),IlabelFull.affine),ipath+'/benefitMap_omega'+str(omega)+'_final.nii.gz')
 
 	## Save Ilabel result ##
-	nibabel.save(nibabel.Nifti1Image(Ilabel.astype(float),IlabelFull.affine),ipath+'/Ilabel_omega'+str(omega)+'.nii.gz')
+	nibabel.save(nibabel.Nifti1Image(Ilabel.astype(float),IlabelFull.affine),ipath+'/Ilabel_omega'+str(omega)+'_final.nii.gz')
 
 	print 'Final total error: '+str(computeError(Ilabel,newSref,totalLabel))
