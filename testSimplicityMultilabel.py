@@ -10,29 +10,45 @@ from testSimplicityBinary import isBinarySimplePoint
 
 
 
+def containsList(smallList, bigList):
+    for i in xrange(len(bigList)-len(smallList)+1):
+        for j in xrange(len(smallList)):
+            if bigList[i+j] != smallList[j]:
+                break
+        else:
+            return i, i+len(smallList)
+    return False
+
 def isSimple(Ilabel,topologyList,totalLabel,x,y,z):
 	simplicity=np.zeros([totalLabel],dtype=int)
-	im=Ilabel[x-1:x+2,y-1:y+2,z-1:z+2]
+	corners=np.array([[[1,0,1],[0,0,0],[1,0,1]],[[0,0,0],[0,0,0],[0,0,0]],[[1,0,1],[0,0,0],[1,0,1]]],dtype=int)
+	im=Ilabel[x-1:x+2,y-1:y+2,z-1:z+2].copy()
+	im[corners==1]=-2
+	allLabels=np.unique(im)[1:]
 	centralLabel=Ilabel[x,y,z]
 	im[im==centralLabel]=-1
-	candidatesLabel=np.unique(im)[1:]
+	candidatesLabel=np.unique(im)[2:]
 	print '\tCandidate labels to evaluate its simplicity: '+str(candidatesLabel)[1:-1]
 	numLabel=len(candidatesLabel)
-	numTopology=len(topologyList)
 	## Loop of labels in the neighbourhood of (x,y,z) ##
 	while(numLabel>0):
 		evalLabel=candidatesLabel[numLabel-1]
+		print evalLabel
 		simplicityLabel=1
+		#topoList=[topo for topo in topologyList for l in np.unique(Ilabel[x-1:x+2,y-1:y+2,z-1:z+2]) if l in topo]
+		topoList=[topo for topo in topologyList if (evalLabel in topo) & (containsList(allLabels,topo)==False) ]
+		numTopology=len(topoList)
 		## Evaluate label simplicity in each topology ##
 		while((simplicityLabel==1) & (numTopology>0)):
-			topo=topologyList[numTopology-1]
+			topo=topoList[numTopology-1]
+			print topo
 			## Discard when current label and evalued label are in a topology group or there are not at all ##
-			if ((evalLabel in topo)&(centralLabel in topo)&(len(topo)==2)) & ((evalLabel not in topo)&(centralLabel not in topo)):
-				im=Ilabel[x-1:x+2,y-1:y+2,z-1:z+2]
-				im[im not in topo]=0
-				im[im in topo]=1
-				im[1,1,1]=1
-				simplicityLabel=isBinarySimplePoint(im)
+			im=Ilabel[x-1:x+2,y-1:y+2,z-1:z+2].copy()
+			## Evaluation of all labels ##
+			for l in range(totalLabel):
+				im[Ilabel[x-1:x+2,y-1:y+2,z-1:z+2]==l]=1 if l in topo else 0
+			#im[1,1,1]=1
+			simplicityLabel=isBinarySimplePoint(im)
 			numTopology-=1
 		simplicity[evalLabel]=simplicityLabel
 		numLabel-=1
@@ -64,17 +80,19 @@ if __name__ == '__main__':
 
 
 
-	## Test Binary Simple Points ##
+	## Test Multilabel Simple Points ##
 	ipath='/home/carlos/Code/neoSeg'
 	Ilabel = nibabel.load(ipath+'/examples/Ilabel.nii.gz')
 	Ilabel = Ilabel.get_data().astype(int)
-	x,y,z = 14,34,25 # Background point #
 	x,y,z = 21,36,17 # Cortex point #
-	x,y,z = 24,46,18 # WM point #
+	x,y,z = 14,34,25 # Background point #
+	x,y,z = 14,36,25 # Cortex point #
+	x,y,z = 26,51,35 # Cortex point #
+	x,y,z = 25,36,12 # Cortex point #
 
 	print '\nInput neighbourhood to be evaluated:\n\n'+str(Ilabel[x-1:x+2,y-1:y+2,z-1:z+2])+'\n'
 
-	topologyList=[[1,2],[2,3],[1,2,3],[1]]
+	topologyList=[[1,2],[2,3],[1,2,3],[1],[0]]
 	totalLabel=4
 
 	print '\nResult = '+str(isSimple(Ilabel,topologyList,totalLabel,x,y,z))+'\n'
