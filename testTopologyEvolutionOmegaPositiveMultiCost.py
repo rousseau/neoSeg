@@ -519,7 +519,9 @@ if __name__ == '__main__':
 	epath='/home/carlos/Test/Topology/examples'
 	os.system('mkdir -p '+epath)
 
-	mode='FarSpheres' # 'CrossEllipsoids' | 'FarSpheres' | 'IMAPA'
+	mode='CrossEllipsoids' # 'CrossEllipsoids' | 'FarSpheres' | 'IMAPA'
+	#terms=['distanceMap','classification']
+	terms=['classification']
 
 	labelsPath=list()
 	labelsPath.append(ipath+'/WM/Simapa_wm_atlasdHCP30_K15_hps1_hss3_alpha0.25.nii.gz')
@@ -578,8 +580,6 @@ if __name__ == '__main__':
 
 		for iter in iterations:
 
-			#terms=['distanceMap','classification']
-			terms=['classification']
 			union='_'.join(terms)
 			#if (iter==0):
 			#	union='_dist'
@@ -626,7 +626,6 @@ if __name__ == '__main__':
 			sumCost=np.sum(benefitMap,axis=4)*(simpleMap==1)
 
 
-			print str(loops)+' loops, \t'+str(len(np.where(sumCost>0)[0]))+' simple points'
 			nibabel.save(nibabel.Nifti1Image(Ilabel.astype(float),IlabelFull.affine),tpath+'/Ilabel_'+mode+'_'+union+'_omega'+str(omega)+'_initial.nii.gz')
 			nibabel.save(nibabel.Nifti1Image(simpleMap.astype(float),IlabelFull.affine),tpath+'/simpleMap_'+mode+'_'+union+'_omega'+str(omega)+'_initial.nii.gz')
 			for t in range(len(terms)):
@@ -677,7 +676,6 @@ if __name__ == '__main__':
 
 			print '\nConnected components of Ilabel = '+str(checkConnectedComponents(Ilabel,totalLabel))+'\n'
 
-		print str(loops)+' loops, \t'+str(len(np.where(sumCost>0)[0]))+' simple points'
 		nibabel.save(nibabel.Nifti1Image(Ilabel.astype(float),IlabelFull.affine),tpath+'/Ilabel_'+mode+'_'+union+'_omega'+str(omega)+'_final.nii.gz')
 		nibabel.save(nibabel.Nifti1Image(simpleMap.astype(float),IlabelFull.affine),tpath+'/simpleMap_'+mode+'_'+union+'_omega'+str(omega)+'_final.nii.gz')
 		for t in range(len(terms)):
