@@ -58,16 +58,24 @@ sendemail=imp.load_source('sendemail', '/home/carlos/Code/sendemail.py')
 def addBackgroundToSref(S):
     Sref=np.zeros([S.shape[0],S.shape[1],S.shape[2],S.shape[3]+1])
     Sref[:,:,:,1:]=S
-    Sref[:,:,:,0]=1-np.max(S,axis=3)
+    #Sref[:,:,:,0]=1-np.max(S,axis=-1)
+    Sref[:,:,:,0]=1-np.sum(S,axis=-1)
     return Sref
 
 def constructSref(segList,delta,addBackground=1):
-	Sref=np.zeros([segList[0].shape[0]+delta[0],segList[0].shape[1]+delta[1],segList[0].shape[2]+delta[2],len(segList)])
-	for l,S in enumerate(segList):
-		Sref[:segList[0].shape[0],:segList[0].shape[1],:segList[0].shape[2],l]=S
-	if addBackground==1:
-		Sref=addBackgroundToSref(Sref)
-	return Sref
+    Sref=np.zeros([segList[0].shape[0]+delta[0],segList[0].shape[1]+delta[1],segList[0].shape[2]+delta[2],len(segList)])
+    for l,S in enumerate(segList):
+        Sref[:segList[0].shape[0],:segList[0].shape[1],:segList[0].shape[2],l]=S
+    ##Normalise##
+    Sref/=np.max(np.sum(Sref,axis=-1))
+    if addBackground==1:
+        Sref=addBackgroundToSref(Sref)
+
+    ###normalize##
+    #max=np.sum(Sref,axis=3)
+    #for l in xrange(len(segList)+1):
+    #    Sref[:,:,:,l]/=max
+    return Sref
 
 
 def tracePerimeter(im):
@@ -101,11 +109,11 @@ def getNeighbourCoordonates(x,y,z,sizeIm,connectivity):
 def constructSyntheticIlabel(sizeRef,omega0):
     newSizeSref=list(sizeRef)
     while (newSizeSref[0]%(2**omega0) != 0):
-		newSizeSref[0]+=1
+        newSizeSref[0]+=1
     while (newSizeSref[1]%(2**omega0) != 0):
-    	newSizeSref[1]+=1
+        newSizeSref[1]+=1
     while (newSizeSref[2]%(2**omega0) != 0):
-    	newSizeSref[2]+=1
+        newSizeSref[2]+=1
     sizeIlabel=[newSizeSref[0]/(2**omega0),newSizeSref[1]/(2**omega0),newSizeSref[2]/(2**omega0)]
     Ilabel=np.zeros(sizeIlabel)
 
@@ -195,6 +203,21 @@ def constructIlabelByCentroidSref(Sref,omega0,threshold=1):
     brain = x**2 + y**2 + z**2 <= r**2
 
 
+    #4labels#Ilabel=np.zeros(sizeIlabel)
+    #4labels#Ilabel[brain]=1
+    #4labels#points=np.where(Ilabel==1)
+    #4labels#for ipt in range(len(points[0])):
+    #4labels#    x,y,z=points[0][ipt],points[1][ipt],points[2][ipt]
+    #4labels#    neighbours26=getNeighbourCoordonates(x,y,z,Ilabel.shape,connectivity=26)
+    #4labels#    if (len([nb for nb in neighbours26 if Ilabel[nb[0],nb[1],nb[2]]==0]) > 0):
+    #4labels#        Ilabel[x,y,z]=3
+    #4labels#points=np.where(Ilabel==1)
+    #4labels#for ipt in range(len(points[0])):
+    #4labels#    x,y,z=points[0][ipt],points[1][ipt],points[2][ipt]
+    #4labels#    neighbours26=getNeighbourCoordonates(x,y,z,Ilabel.shape,connectivity=26)
+    #4labels#    if (len([nb for nb in neighbours26 if Ilabel[nb[0],nb[1],nb[2]]==3]) > 0):
+    #4labels#        Ilabel[x,y,z]=2
+
     Ilabel=np.zeros(sizeIlabel)
     Ilabel[brain]=1
     points=np.where(Ilabel==1)
@@ -202,13 +225,8 @@ def constructIlabelByCentroidSref(Sref,omega0,threshold=1):
         x,y,z=points[0][ipt],points[1][ipt],points[2][ipt]
         neighbours26=getNeighbourCoordonates(x,y,z,Ilabel.shape,connectivity=26)
         if (len([nb for nb in neighbours26 if Ilabel[nb[0],nb[1],nb[2]]==0]) > 0):
-            Ilabel[x,y,z]=3
-    points=np.where(Ilabel==1)
-    for ipt in range(len(points[0])):
-        x,y,z=points[0][ipt],points[1][ipt],points[2][ipt]
-        neighbours26=getNeighbourCoordonates(x,y,z,Ilabel.shape,connectivity=26)
-        if (len([nb for nb in neighbours26 if Ilabel[nb[0],nb[1],nb[2]]==3]) > 0):
             Ilabel[x,y,z]=2
+
 
     return Ilabel
 
@@ -259,11 +277,97 @@ def buildInputs(labelsPath,opath,omega,threshold=1):
     delta=[newSizeSref[0]-sizeRef[0],newSizeSref[1]-sizeRef[1],newSizeSref[2]-sizeRef[2]]
 
     Sref=constructSref(S,delta,1)
-    nibabel.save(nibabel.Nifti1Image(Sref,header),opath+'/Sref.nii.gz')
+    nibabel.save(nibabel.Nifti1Image(Sref,header),opath+'/Sref_3l.nii.gz')
 
     Ilabel=constructIlabelByCentroidSref(Sref,omega,threshold)
-    nibabel.save(nibabel.Nifti1Image(Ilabel.astype(np.float),header),opath+'/Ilabel.nii.gz')
+    nibabel.save(nibabel.Nifti1Image(Ilabel.astype(np.float),header),opath+'/Ilabel_3l.nii.gz')
 
+
+
+def buildTestFarSpheres2D(sizeIm,numLabels,header,opath,omega):
+
+    Sref=np.zeros([sizeIm[0],sizeIm[1],numLabels])
+    Ilabel=np.zeros([sizeIm[0],sizeIm[1]])
+    centroid=(int(sizeIm[0]/2),int(sizeIm[1]/2))
+    rWm,rCortex,rCsf=int(np.min(centroid)*0.7),int(np.min(centroid)*0.8),int(np.min(centroid)*0.9)
+    x,y = np.ogrid[-centroid[0]:sizeIm[0]-centroid[0], -centroid[1]:sizeIm[1]-centroid[1]]
+    wm = x**2 + y**2 <= rWm**2
+    cortex = x**2 + y**2 <= rCortex**2
+    #csf = x**2 + y**2 + z**2 <= rCsf**2
+    #Ilabel[csf]=3
+    Ilabel[cortex]=2
+    Ilabel[wm]=1
+    for i in xrange(numLabels):
+        Sref[:,:,i]=1*Ilabel==i
+    nibabel.save(nibabel.Nifti1Image(Sref,header),opath+'/testFarSpheres2D_Sref.nii.gz')
+
+    Ilabel=np.zeros([sizeIm[0],sizeIm[1]])
+    rWm,rCortex,rCsf=int(np.min(centroid)*0.3),int(np.min(centroid)*0.4),int(np.min(centroid)*0.5)
+    centroid=(int(sizeIm[0]/2),int(sizeIm[1]/2))
+    x,y = np.ogrid[-centroid[0]:sizeIm[0]-centroid[0], -centroid[1]:sizeIm[1]-centroid[1]]
+    wm = x**2 + y**2 <= rWm**2
+    cortex = x**2 + y**2 <= rCortex**2
+    #csf = x**2 + y**2 + z**2 <= rCsf**2
+    #Ilabel[csf]=3
+    Ilabel[cortex]=2
+    Ilabel[wm]=1
+    nibabel.save(nibabel.Nifti1Image(Ilabel.astype(np.float),header),opath+'/testFarSpheres2D_Ilabel.nii.gz')
+
+
+def buildTestFarSpheres(sizeIm,numLabels,header,opath,omega):
+
+    Sref=np.zeros([sizeIm[0],sizeIm[1],sizeIm[2],numLabels])
+    Ilabel=np.zeros([sizeIm[0],sizeIm[1],sizeIm[2]])
+    centroid=(int(sizeIm[0]/2),int(sizeIm[1]/2),int(sizeIm[2]/2))
+    rWm,rCortex,rCsf=int(np.min(centroid)*0.7),int(np.min(centroid)*0.8),int(np.min(centroid)*0.9)
+    x,y,z = np.ogrid[-centroid[0]:sizeIm[0]-centroid[0], -centroid[1]:sizeIm[1]-centroid[1], -centroid[2]:sizeIm[2]-centroid[2]]
+    wm = x**2 + y**2 + z**2 <= rWm**2
+    cortex = x**2 + y**2 + z**2 <= rCortex**2
+    #csf = x**2 + y**2 + z**2 <= rCsf**2
+    #Ilabel[csf]=3
+    Ilabel[cortex]=2
+    Ilabel[wm]=1
+    for i in xrange(numLabels):
+        Sref[:,:,:,i]=1*Ilabel==i
+    nibabel.save(nibabel.Nifti1Image(Sref,header),opath+'/testFarSpheres_Sref.nii.gz')
+
+    Ilabel=np.zeros([sizeIm[0],sizeIm[1],sizeIm[2]])
+    rWm,rCortex,rCsf=int(np.min(centroid)*0.3),int(np.min(centroid)*0.4),int(np.min(centroid)*0.5)
+    centroid=(int(sizeIm[0]/2),int(sizeIm[1]/2),int(sizeIm[2]/2))
+    x,y,z = np.ogrid[-centroid[0]:sizeIm[0]-centroid[0], -centroid[1]:sizeIm[1]-centroid[1], -centroid[2]:sizeIm[2]-centroid[2]]
+    wm = x**2 + y**2 + z**2 <= rWm**2
+    cortex = x**2 + y**2 + z**2 <= rCortex**2
+    #csf = x**2 + y**2 + z**2 <= rCsf**2
+    #Ilabel[csf]=3
+    Ilabel[cortex]=2
+    Ilabel[wm]=1
+    nibabel.save(nibabel.Nifti1Image(Ilabel.astype(np.float),header),opath+'/testFarSpheres_Ilabel.nii.gz')
+
+
+def buildTestCrossEllipsoids(sizeIm,numLabels,header,opath,omega):
+
+    Sref=np.zeros([sizeIm[0],sizeIm[1],sizeIm[2],numLabels])
+    Ilabel=np.zeros([sizeIm[0],sizeIm[1],sizeIm[2]])
+    centroid=(int(sizeIm[0]/2),int(sizeIm[1]/2),int(sizeIm[2]/2))
+    rWm,rCortex,rCsf=int(np.min(centroid)*0.7),int(np.min(centroid)*0.8),int(np.min(centroid)*0.9)
+    x,y,z = np.linspace(0,sizeIm[0]-1,sizeIm[0]),np.linspace(0,sizeIm[1]-1,sizeIm[1])[:,None],np.linspace(0,sizeIm[2]-1,sizeIm[2])[:,None,None]
+    Rx,Ry,Rz = [8,10],[16,18],[8,10]
+    for i in list(reversed(range(len(Rx)))):
+        mask = ((x-centroid[0])/Rx[i])**2 + ((y-centroid[1])/Ry[i])**2 + ((z-centroid[2])/Rz[i])**2 <= 1
+        Ilabel[mask] = i+1
+    for i in xrange(numLabels):
+        Sref[:,:,:,i]=1*Ilabel==i
+    nibabel.save(nibabel.Nifti1Image(Sref,header),opath+'/testCrossEllipsoids_Sref.nii.gz')
+
+    Ilabel=np.zeros([sizeIm[0],sizeIm[1],sizeIm[2]])
+    centroid=(int(sizeIm[0]/2),int(sizeIm[1]/2),int(sizeIm[2]/2))
+    rWm,rCortex,rCsf=int(np.min(centroid)*0.3),int(np.min(centroid)*0.4),int(np.min(centroid)*0.5)
+    x,y,z = np.linspace(0,sizeIm[0]-1,sizeIm[0]),np.linspace(0,sizeIm[1]-1,sizeIm[1])[:,None],np.linspace(0,sizeIm[2]-1,sizeIm[2])[:,None,None]
+    Rx,Ry,Rz = [8,10],[8,10],[16,18]
+    for i in list(reversed(range(len(Rx)))):
+        mask = ((x-centroid[0])/Rx[i])**2 + ((y-centroid[1])/Ry[i])**2 + ((z-centroid[2])/Rz[i])**2 <= 1
+        Ilabel[mask] = i+1
+    nibabel.save(nibabel.Nifti1Image(Ilabel.astype(np.float),header),opath+'/testCrossEllipsoids_Ilabel.nii.gz')
 
 
 if __name__ == '__main__':
@@ -276,10 +380,18 @@ if __name__ == '__main__':
     labelsPath=list()
     labelsPath.append(ipath+'/WM/Simapa_wm_atlasdHCP30_K15_hps1_hss3_alpha0.25.nii.gz')
     labelsPath.append(ipath+'/Cortex/Simapa_cortex_atlasdHCP30_K15_hps1_hss3_alpha0.25.nii.gz')
-    labelsPath.append(ipath+'/CSF/Simapa_csf_atlasdHCP30_K15_hps1_hss3_alpha0.25.nii.gz')
+    #labelsPath.append(ipath+'/CSF/Simapa_csf_atlasdHCP30_K15_hps1_hss3_alpha0.25.nii.gz')
 
     omega=4
 
     threshold=1
 
-    buildInputs(labelsPath,opath,omega,threshold)
+    #buildInputs(labelsPath,opath,omega,threshold)
+
+    sizeIm=[50,50,50]
+    numLabels=3
+    header=nibabel.load(labelsPath[0]).affine
+    buildTestFarSpheres2D(sizeIm,numLabels,header,opath,omega)
+
+    #buildTestFarSpheres(sizeIm,numLabels,header,opath,omega)
+    #buildTestCrossEllipsoids(sizeIm,numLabels,header,opath,omega)
