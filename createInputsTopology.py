@@ -71,17 +71,12 @@ def constructSref(segList,delta,addBackground=1):
     if addBackground==1:
         Sref=addBackgroundToSref(Sref)
 
-    ###normalize##
-    #max=np.sum(Sref,axis=3)
-    #for l in xrange(len(segList)+1):
-    #    Sref[:,:,:,l]/=max
+
     return Sref
 
 
 def tracePerimeter(im):
     distance = ndimage.distance_transform_cdt(im,metric='taxicab')
-    #distance[distance!=1] = 0
-    #distance = ndimage.distance_transform_edt(im)
     distance[distance>3] = 0
     distance[distance<1] = 0
     return distance
@@ -203,20 +198,6 @@ def constructIlabelByCentroidSref(Sref,omega0,threshold=1):
     brain = x**2 + y**2 + z**2 <= r**2
 
 
-    #4labels#Ilabel=np.zeros(sizeIlabel)
-    #4labels#Ilabel[brain]=1
-    #4labels#points=np.where(Ilabel==1)
-    #4labels#for ipt in range(len(points[0])):
-    #4labels#    x,y,z=points[0][ipt],points[1][ipt],points[2][ipt]
-    #4labels#    neighbours26=getNeighbourCoordonates(x,y,z,Ilabel.shape,connectivity=26)
-    #4labels#    if (len([nb for nb in neighbours26 if Ilabel[nb[0],nb[1],nb[2]]==0]) > 0):
-    #4labels#        Ilabel[x,y,z]=3
-    #4labels#points=np.where(Ilabel==1)
-    #4labels#for ipt in range(len(points[0])):
-    #4labels#    x,y,z=points[0][ipt],points[1][ipt],points[2][ipt]
-    #4labels#    neighbours26=getNeighbourCoordonates(x,y,z,Ilabel.shape,connectivity=26)
-    #4labels#    if (len([nb for nb in neighbours26 if Ilabel[nb[0],nb[1],nb[2]]==3]) > 0):
-    #4labels#        Ilabel[x,y,z]=2
 
     Ilabel=np.zeros(sizeIlabel)
     Ilabel[brain]=1
