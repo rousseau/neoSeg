@@ -30,19 +30,19 @@
 
   #####################################################################
   Python script consecrated to patch-based image segmentation. The methods
-  used are the classical Non-Local Means (NLM) algorithm, an optimization
-  regarding the real intensity (S_opt), input image and an optimization
-  regarding the real segmentation image (I_opt), an optimization regarding
-  both real intensity (IS_opt) and segmentation and, a new one, an iterative
-  optimization (IS_iter).
+  used are the Label Propagation (LP) algorithm (inspirated in the classical
+  Non-Local Means), an optimization regarding the real intensity (S_opt),
+  input image and an optimization regarding the real segmentation image
+  (I_opt), an optimization regarding both real intensity (IS_opt) and
+  segmentation and, a new one, an iterative optimization (IMAPA).
 
 
   Thus, parameter --method can be multiple and adopt the next set of values:
-        -NLM
+        -LP
         -S_opt
         -I_opt
         -IS_opt
-        -IS_iter
+        -IMAPA
   #####################################################################
 
 """
@@ -60,7 +60,7 @@ import multiprocessing
 
 #--Methods--#
 
-def NLM_threads(args):
+def LP_threads(args):
     (points)=args
     I_i=np.zeros([input.shape[0],input.shape[1],input.shape[2]])
     I_s=np.zeros([input.shape[0],input.shape[1],input.shape[2]])
@@ -69,7 +69,7 @@ def NLM_threads(args):
         Pi=extractCentralPatch(input,vx)
         Pa_j=extractExemples(atlas,vx)
         Pl_j=extractExemples(label,vx)
-        W[iv,:]=computeNLMKNNWeights(Pi,Pa_j)
+        W[iv,:]=computeLPKNNWeights(Pi,Pa_j)
         I_i[vx[0],vx[1],vx[2]]=np.sum([W[iv,j]*Pa_j[j,center] for j in xrange(num_atlasexamples)], axis=0)
         I_s[vx[0],vx[1],vx[2]]=np.sum([W[iv,j]*Pl_j[j,center] for j in xrange(num_atlasexamples)], axis=0)
     return W,I_i,I_s
@@ -121,7 +121,7 @@ def IS_opt_threads(args):
     return Witer,I_i,I_s
 
 
-def IS_iter_threads(args):
+def IMAPA_threads(args):
     (points,Wini)=args
     I_i=np.zeros([input.shape[0],input.shape[1],input.shape[2]])
     I_s=np.zeros([input.shape[0],input.shape[1],input.shape[2]])
@@ -188,7 +188,7 @@ def computeOptKNNWeights(Pw,Pw_j,initialisation,reg=1e-03):
     return weights
 
 
-def computeNLMKNNWeights(Pw,Pw_j):
+def computeLPKNNWeights(Pw,Pw_j):
     dist_j=np.array([np.sum((Pw-Pw_j[j,:])**2) for j in xrange(num_atlasexamples)]) #distance between Pw and Pw_j
     order=sorted(xrange(len(dist_j)), key=lambda lam: dist_j[lam])[:K]#les plus petits
     w=np.exp(-(dist_j[order]/h))
@@ -287,13 +287,13 @@ if __name__ == '__main__':
             mask[label[a,:,:,:]>(np.max(label)*0.10)]=1
     K=args.k if hss[0]!=0 else num_atlas
     #Correct repetitions or outliers from methods introduced by the user#
-    available_method=['NLM','S_opt','I_opt','IS_opt','IS_iter']
+    available_method=['LP','S_opt','I_opt','IS_opt','IMAPA']
     method=[m for m in set(args.method) if m not in list(set(args.method)-set(available_method))]
     #Assign a dictionary for the outputs#
     output={}
     for m in method:
-        if m=='NLM':
-            output['NLM']=args.output+'_NLM.nii.gz'
+        if m=='LP':
+            output['LP']=args.output+'_LP.nii.gz'
         elif m=='S_opt':
             if args.seg==None:
                 print 'Input segmentation image (ground truth) is required for this method.'
@@ -309,11 +309,11 @@ if __name__ == '__main__':
                 print 'Number of iterations is required for this method.'
                 sys.exit()
             output['IS_opt']=args.output+'_IS_opt.nii.gz'
-        elif m=='IS_iter':
+        elif m=='IMAPA':
             if args.iterations==None:
                 print 'Number of iterations is required for this method.'
                 sys.exit()
-            output['IS_iter']=args.output+'_IS_iter.nii.gz'
+            output['IMAPA']=args.output+'_IMAPA.nii.gz'
     iterations=args.iterations
     #Compare the number of cores available against the user parameter#
     threads=multiprocessing.cpu_count()
@@ -336,7 +336,7 @@ if __name__ == '__main__':
     print 'Half search area size: ',str(args.hss)
     print 'Half patch size: ',str(args.hps)
     print 'K: ',str(K)
-    if 'IS_iter' in method:
+    if 'IMAPA' in method:
         print 'Number of iterations: ',str(iterations)
     print 'Number of threads: ',str(threads)
 
@@ -355,9 +355,9 @@ if __name__ == '__main__':
     num_partitions=threads
     pointSplit=chunkIt(points,num_partitions)
 
-    #--Compute NLM--#
+    #--Compute LP--#
     pool=multiprocessing.Pool(threads)
-    tmp=pool.map(NLM_threads, pointSplit)
+    tmp=pool.map(LP_threads, pointSplit)
     pool.close()
     pool.join()
 
@@ -371,9 +371,13 @@ if __name__ == '__main__':
         Inlm_s+=tmp[part][2]
         count+=len(pointSplit[part])
 
-    if 'NLM' in method:
-        nibabel.save(nibabel.Nifti1Image(Inlm_i, header),output['NLM']+'_I.nii.gz')
-        nibabel.save(nibabel.Nifti1Image(Inlm_s, header),output['NLM']+'_S.nii.gz')
+    if 'LP' in method:
+        try:
+            nibabel.save(nibabel.Nifti1Image(Inlm_i, header),output['LP']+'_I.nii.gz')
+            nibabel.save(nibabel.Nifti1Image(Inlm_s, header),output['LP']+'_S.nii.gz')
+        except:
+            print 'Error saving IMAPA result'
+            sys.exit()
 
 
     #--Compute S_opt--#
@@ -388,9 +392,12 @@ if __name__ == '__main__':
         for part in xrange(num_partitions):
             Is_opt_i+=tmp[part][0]
             Is_opt_s+=tmp[part][1]
-
-        nibabel.save(nibabel.Nifti1Image(Is_opt_i, header),output['S_opt']+'_I.nii.gz')
-        nibabel.save(nibabel.Nifti1Image(Is_opt_s, header),output['S_opt']+'_S.nii.gz')
+        try:
+            nibabel.save(nibabel.Nifti1Image(Is_opt_i, header),output['S_opt']+'_I.nii.gz')
+            nibabel.save(nibabel.Nifti1Image(Is_opt_s, header),output['S_opt']+'_S.nii.gz')
+        except:
+            print 'Error saving S_opt result'
+            sys.exit()
 
     #--Compute I_opt--#
     if 'I_opt' in method:
@@ -404,9 +411,12 @@ if __name__ == '__main__':
         for part in xrange(num_partitions):
             Ii_opt_i+=tmp[part][0]
             Ii_opt_s+=tmp[part][1]
-
-        nibabel.save(nibabel.Nifti1Image(Ii_opt_i, header),output['I_opt']+'_I.nii.gz')
-        nibabel.save(nibabel.Nifti1Image(Ii_opt_s, header),output['I_opt']+'_S.nii.gz')
+        try:
+            nibabel.save(nibabel.Nifti1Image(Ii_opt_i, header),output['I_opt']+'_I.nii.gz')
+            nibabel.save(nibabel.Nifti1Image(Ii_opt_s, header),output['I_opt']+'_S.nii.gz')
+        except:
+            print 'Error saving I_opt result'
+            sys.exit()
 
 
     #--Compute IS_opt--#
@@ -431,36 +441,42 @@ if __name__ == '__main__':
                 Iis_opt_i+=tmp[part][1]
                 Iis_opt_s+=tmp[part][2]
                 count+=len(pointSplit[part])
+            try:
+                nibabel.save(nibabel.Nifti1Image(Iis_opt_i, header),output['IS_opt']+'_I_'+str(iter+1)+'.nii.gz')
+                nibabel.save(nibabel.Nifti1Image(Iis_opt_s, header),output['IS_opt']+'_S_'+str(iter+1)+'.nii.gz')
+            except:
+                print 'Error saving IS_opt result'
+                sys.exit()
 
-            nibabel.save(nibabel.Nifti1Image(Iis_opt_i, header),output['IS_opt']+'_I_'+str(iter+1)+'.nii.gz')
-            nibabel.save(nibabel.Nifti1Image(Iis_opt_s, header),output['IS_opt']+'_S_'+str(iter+1)+'.nii.gz')
 
-
-    #--Compute IS_iter--#
-    if 'IS_iter' in method:
-        Wis_iter=Wnlm
+    #--Compute IMAPA--#
+    if 'IMAPA' in method:
+        Wimapa=Wnlm
 
         for iter in xrange(iterations):
-            W_prev=chunkIt(Wis_iter,num_partitions)
-            Iis_iter_s=None
-            Iis_iter_i=None
+            W_prev=chunkIt(Wimapa,num_partitions)
+            Iimapa_s=None
+            Iimapa_i=None
             pool=multiprocessing.Pool(threads)
-            tmp=pool.map(IS_iter_threads,itertools.izip(pointSplit,W_prev))
+            tmp=pool.map(IMAPA_threads,itertools.izip(pointSplit,W_prev))
             pool.close()
             pool.join()
 
-            Iis_iter_i=np.zeros([input.shape[0],input.shape[1],input.shape[2]])
-            Iis_iter_s=np.zeros([input.shape[0],input.shape[1],input.shape[2]])
-            Wis_iter=np.zeros((len(points),num_atlasexamples))
+            Iimapa_i=np.zeros([input.shape[0],input.shape[1],input.shape[2]])
+            Iimapa_s=np.zeros([input.shape[0],input.shape[1],input.shape[2]])
+            Wimapa=np.zeros((len(points),num_atlasexamples))
             count=0
             for part in xrange(num_partitions):
-                Wis_iter[count:count+len(pointSplit[part]),:]=tmp[part][0]
-                Iis_iter_i+=tmp[part][1]
-                Iis_iter_s+=tmp[part][2]
+                Wimapa[count:count+len(pointSplit[part]),:]=tmp[part][0]
+                Iimapa_i+=tmp[part][1]
+                Iimapa_s+=tmp[part][2]
                 count+=len(pointSplit[part])
-
-            nibabel.save(nibabel.Nifti1Image(Iis_iter_i, header),output['IS_iter']+'_I_'+str(iter+1)+'.nii.gz')
-            nibabel.save(nibabel.Nifti1Image(Iis_iter_s, header),output['IS_iter']+'_S_'+str(iter+1)+'.nii.gz')
+            try:
+                nibabel.save(nibabel.Nifti1Image(Iimapa_i, header),output['IMAPA']+'_I_'+str(iter+1)+'.nii.gz')
+                nibabel.save(nibabel.Nifti1Image(Iimapa_s, header),output['IMAPA']+'_S_'+str(iter+1)+'.nii.gz')
+            except:
+                print 'Error saving IMAPA result'
+                sys.exit()
 
 
 
