@@ -36,6 +36,37 @@ def isBinarySimplePoint(im):
 	return simplePoint
 
 
+def isBinarySimplePoint2(im):
+	simplePoint=0
+	X = im.copy()
+	### 6-connected test ###
+	## X without corners ##
+	# corners=np.array([[[1,0,1],[0,0,0],[1,0,1]],[[0,0,0],[0,0,0],[0,0,0]],[[1,0,1],[0,0,0],[1,0,1]]])
+	# X[corners==1]=0
+	X[np.array([[[True,False,True],[False,False,False],[True,False,True]],[[False,False,False],[False,False,False],[False,False,False]],[[True,False,True],[False,False,False],[True,False,True]]])]=0
+	## Labels 6-connected keeping the center ##
+	#label,numLabelCenter=measure.label(X,connectivity=1,return_num=True)
+	## Labels 6-connected removing the center ##
+	X[1,1,1] = 0
+	label,numLabelNoCenter=measure.label(X,connectivity=1,return_num=True)
+	print '\t1st test, number of labels without center: '+str(numLabelNoCenter)
+	## Numbers of labels have to be equals ##
+	if numLabelNoCenter==1:
+		### 26-connected background test ###
+		## Complementary of X without center ##
+		X = 1-im.copy()
+		X[1,1,1] = 0
+		## Labels 26-connected ##
+		label,numLabel=measure.label(X,connectivity=3,return_num=True)
+		## Result ###
+		simplePoint=1 if numLabel==1 else 0
+		print '\t2nd test, number of labels for the complementary: '+str(numLabel)
+	else:
+		print '\t2nd test is not needed'
+
+	return simplePoint
+
+
 
 
 if __name__ == '__main__':
@@ -98,4 +129,4 @@ if __name__ == '__main__':
 				im=1-im
 
 
-			print 'Result = '+str(isBinarySimplePoint(im))
+			print 'Result = '+str(isBinarySimplePoint2(im))
