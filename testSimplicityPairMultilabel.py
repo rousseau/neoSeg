@@ -11,13 +11,13 @@ from time import time
 
 
 
-def isSimplePair(im,center,topologyList,totalLabel):
+def isSimplePair(Im,center,topologyList,totalLabel):
     simplicity=np.zeros([totalLabel],dtype=int)
-    #im=Ilabel[x-1:x+2,y-1:y+2,z-1:z+2].copy()
-    im_c=im.copy()
+    #Im=Ilabel[x-1:x+2,y-1:y+2,z-1:z+2].copy()
+    im_c=Im.copy()
     #centralLabel=Ilabel[x,y,z]
     #im_c[im_c==Ilabel[x,y,z]]=-1
-    im_c[im_c==im[center]]=-1
+    im_c[im_c==Im[center]]=-1
     candidatesLabel=np.unique(im_c)[1:]
     numLabel=len(candidatesLabel)
     ## Loop of labels in the neighbourhood of (x,y,z) ##
@@ -29,10 +29,10 @@ def isSimplePair(im,center,topologyList,totalLabel):
         ## Evaluate label simplicity in each topology ##
         while((simplicityLabel==1) & (numTopology>0)):
             ## Discard when current label and evalued label are in a topology group or there are not at all ##
-            im_c=im.copy()
+            im_c=Im.copy()
             ## Evaluation of all labels ##
             for l in xrange(totalLabel):
-                im_c[im==l]=1 if l in topologyList[numTopology-1] else 0
+                im_c[Im==l]=1 if l in topologyList[numTopology-1] else 0
             if len(np.unique(im_c))>1:
                 simplicityLabel=isBinarySimplePair2(im_c,center)
             numTopology-=1
@@ -41,35 +41,23 @@ def isSimplePair(im,center,topologyList,totalLabel):
     return simplicity
 
 
-def showSubplot(im,columns,title):
-    numIm = im.shape[2]
-    rows = int((numIm/columns))
-
-    plt.figure(title)
-    i = 0
-    for i in range(numIm):
-        plt.subplot(rows,columns,i+1)
-        plt.imshow(im[i,:,:],cmap='gray')
-        plt.title('z = '+str(i))
-        plt.axis('off')
-
-
 
 
 if __name__ == '__main__':
     '''
     Function to test:
-        isSimple(Ilabel,topologyList,totalLabel,x,y,z)
+        isSimplePair(Im,center,topologyList,totalLabel)
                 Input:
-                    Ilabel			=> 	3D image of labels
+                    Im  			=> 	a 3x3x4 or 3x4x3 or 4x3x3 matrix
+                    centered        =>  an array with coordinates of Im that
+                                        locate the pair center to be evaluated
                     topologyList 	=>	groups of labels to check its topology
                     totalLabel		=>	number of labels in Ilabel
-                    x,y,z 			=>	point to be evaluated
                 Return:
                     Binary array with a size equal to the number of labels
                     (totalLabel). Position in this array determines the evalued
                     label and its value is:
-                         1 		if (x,y,z) is simple in 6-26 connectivity
+                        1 		if center of Im is simple in 6-26 connectivity
                         0		otherwise
     '''
 
@@ -82,13 +70,12 @@ if __name__ == '__main__':
     x,y,z = 25,36,12 # Cortex point #
     x,y,z = 14,34,25 # Background point #
     x,y,z = 21,36,17 # Cortex point #
-    x,y,z = 10,10,10 # Cortex point #
     x,y,z = 51,27,32 # Cortex % WM #
     x,y,z = 26,51,35 # Cortex point #
     x,y,z = 14,36,25 # Cortex point #
+    x,y,z = 10,10,10 # Cortex point #
+    x,y,z = 69,96,51
 
-    #Ilabel=np.array([[[1,1,1],[1,1,1],[1,1,1]], [[1,1,1],[1,0,1],[1,1,1]], [[1,1,1],[1,1,1],[1,1,1]]])
-    #x,y,z = 1,1,1
     image = Ilabel[x-2:x+3,y-2:y+3,z-2:z+3]
 
     print '\nInput neighbourhood to be evaluated:\n\n'+str(image)+'\n'
@@ -140,4 +127,7 @@ if __name__ == '__main__':
 
     print 'Computing time: '+str(time()-t)+' s'
 
-    print 'Result '+str(np.count_nonzero(simplePairMap==1))
+    print 'Simple pairs found: '+str(np.count_nonzero(simplePairMap==1))+'\
+                \n\t-> '+str(np.count_nonzero(simplePairMap[:,:,:,0,:]==1))+' in x-plane\
+                \n\t-> '+str(np.count_nonzero(simplePairMap[:,:,:,1,:]==1))+' in y-plane\
+                \n\t-> '+str(np.count_nonzero(simplePairMap[:,:,:,2,:]==1))+' in z-plane'
