@@ -75,8 +75,8 @@ def LP_threads(args):
         Pa_j=extractExamples(atlas,vx)
         Pl_j=extractExamples(label,vx)
         W[iv,:]=computeLPKNNWeights(Pi,Pa_j)
-        I_i[vx[0],vx[1],vx[2]]=np.sum([W[iv,j]*Pa_j[j,center] for j in xrange(num_atlasexamples)], axis=0)
-        I_s[vx[0],vx[1],vx[2]]=np.sum([W[iv,j]*Pl_j[j,center] for j in xrange(num_atlasexamples)], axis=0)
+        I_i[vx[0],vx[1],vx[2]]=np.sum([W[iv,j]*Pa_j[j,center] for j in range(num_atlasexamples)], axis=0)
+        I_s[vx[0],vx[1],vx[2]]=np.sum([W[iv,j]*Pl_j[j,center] for j in range(num_atlasexamples)], axis=0)
     return W,I_i,I_s
 
 
@@ -89,8 +89,8 @@ def S_opt_threads(args):
         Pa_j=extractExamples(atlas,vx)
         Pl_j=extractExamples(label,vx)
         Ws_opt=computeOptKNNWeights(Ps,Pl_j,Wini[iv,:])
-        I_i[vx[0],vx[1],vx[2]]=np.sum([Ws_opt[j]*Pa_j[j,center] for j in xrange(num_atlasexamples)], axis=0)
-        I_s[vx[0],vx[1],vx[2]]=np.sum([Ws_opt[j]*Pl_j[j,center] for j in xrange(num_atlasexamples)], axis=0)
+        I_i[vx[0],vx[1],vx[2]]=np.sum([Ws_opt[j]*Pa_j[j,center] for j in range(num_atlasexamples)], axis=0)
+        I_s[vx[0],vx[1],vx[2]]=np.sum([Ws_opt[j]*Pl_j[j,center] for j in range(num_atlasexamples)], axis=0)
     return I_i,I_s
 
 
@@ -103,8 +103,8 @@ def I_opt_threads(args):
         Pa_j=extractExamples(atlas,vx)
         Pl_j=extractExamples(label,vx)
         Wi_opt=computeOptKNNWeights(Pi,Pa_j,Wini[iv,:])
-        I_i[vx[0],vx[1],vx[2]]=np.sum([Wi_opt[j]*Pa_j[j,center] for j in xrange(num_atlasexamples)], axis=0)
-        I_s[vx[0],vx[1],vx[2]]=np.sum([Wi_opt[j]*Pl_j[j,center] for j in xrange(num_atlasexamples)], axis=0)
+        I_i[vx[0],vx[1],vx[2]]=np.sum([Wi_opt[j]*Pa_j[j,center] for j in range(num_atlasexamples)], axis=0)
+        I_s[vx[0],vx[1],vx[2]]=np.sum([Wi_opt[j]*Pl_j[j,center] for j in range(num_atlasexamples)], axis=0)
     return I_i,I_s
 
 
@@ -121,8 +121,8 @@ def IS_opt_threads(args):
         Pis=np.concatenate((Pi,Ps))
         Pis_j=np.concatenate((Pa_j,Pl_j),axis=1)
         Witer[iv,:]=computeOptKNNWeights(Pis,Pis_j,Wini[iv,:])
-        I_i[vx[0],vx[1],vx[2]]=np.sum([Witer[iv,j]*Pa_j[j,center] for j in xrange(num_atlasexamples)], axis=0)
-        I_s[vx[0],vx[1],vx[2]]=np.sum([Witer[iv,j]*Pl_j[j,center] for j in xrange(num_atlasexamples)], axis=0)
+        I_i[vx[0],vx[1],vx[2]]=np.sum([Witer[iv,j]*Pa_j[j,center] for j in range(num_atlasexamples)], axis=0)
+        I_s[vx[0],vx[1],vx[2]]=np.sum([Witer[iv,j]*Pl_j[j,center] for j in range(num_atlasexamples)], axis=0)
     return Witer,I_i,I_s
 
 
@@ -135,12 +135,12 @@ def IMAPA_ValueWeights_threads(args):
         Pi=extractCentralPatch(input,vx)
         Pa_j=extractExamples(atlas,vx)
         Pl_j=extractExamples(label,vx)
-        hatPs=np.sum([Wini[iv,j]*Pl_j[j,:] for j in xrange(num_atlasexamples)], axis=0)
+        hatPs=np.sum([Wini[iv,j]*Pl_j[j,:] for j in range(num_atlasexamples)], axis=0)
         Pis=np.concatenate((Pi,hatPs))
         Pis_j=np.concatenate((Pa_j,Pl_j),axis=1)
         Witer[iv,:]=computeOptKNNWeights(Pis,Pis_j,Wini[iv,:])
-        I_i[vx[0],vx[1],vx[2]]=np.sum([Witer[iv,j]*Pa_j[j,center] for j in xrange(num_atlasexamples)], axis=0)
-        I_s[vx[0],vx[1],vx[2]]=np.sum([Witer[iv,j]*Pl_j[j,center] for j in xrange(num_atlasexamples)], axis=0)
+        I_i[vx[0],vx[1],vx[2]]=np.sum([Witer[iv,j]*Pa_j[j,center] for j in range(num_atlasexamples)], axis=0)
+        I_s[vx[0],vx[1],vx[2]]=np.sum([Witer[iv,j]*Pl_j[j,center] for j in range(num_atlasexamples)], axis=0)
     return Witer,I_i,I_s
 
 
@@ -179,7 +179,7 @@ def extractCentralPatch(data,vx):
 def extractExamples(data4D,vx):
     P_j=np.zeros([num_atlasexamples,patch_size])
     count=0
-    for ind in xrange(num_atlas):
+    for ind in range(num_atlas):
         data=data4D[ind,:,:,:]
         xmin=vx[0]-hss[0]
         ymin=vx[1]-hss[1]
@@ -187,9 +187,9 @@ def extractExamples(data4D,vx):
         xmax=vx[0]+hss[0]
         ymax=vx[1]+hss[1]
         zmax=vx[2]+hss[2]
-        for ii in xrange(xmin,xmax+1):
-            for jj in xrange(ymin,ymax+1):
-                for kk in xrange(zmin,zmax+1):
+        for ii in range(xmin,xmax+1):
+            for jj in range(ymin,ymax+1):
+                for kk in range(zmin,zmax+1):
                     P_j[count,:]=data[ii-hps[0]:ii+hps[0]+1,jj-hps[1]:jj+hps[1]+1,kk-hps[2]:kk+hps[2]+1].reshape([patch_size])
                     count+=1
     return P_j
@@ -204,17 +204,17 @@ def computeIMAPAValue(I, I_examples, L, L_examples, hps, hss, patch_size, num_ex
     distance=epsilon*np.ones([num_examples])
     Z=np.zeros([num_examples,2*patch_size])
     '''##Loop on atlas##'''
-    for a in xrange(num_atlas):
+    for a in range(num_atlas):
         '''##Loop on search zone##'''
-        for ii in xrange(2*hss[0]+1):
-            for jj in xrange(2*hss[1]+1):
-                for kk in xrange(2*hss[2]+1):
+        for ii in range(2*hss[0]+1):
+            for jj in range(2*hss[1]+1):
+                for kk in range(2*hss[2]+1):
 
                     '''##Loop on patch##'''
                     loop_patch = 0
-                    for iii in xrange(2*hps[0]+1):
-                        for jjj in xrange(2*hps[1]+1):
-                            for kkk in xrange(2*hps[2]+1):
+                    for iii in range(2*hps[0]+1):
+                        for jjj in range(2*hps[1]+1):
+                            for kkk in range(2*hps[2]+1):
                                 '''##Compute LLE input##'''
                                 Z[loop_examples,loop_patch] = alpha1_sqrt * (I_examples[a,ii+iii,jj+jjj,kk+kkk]-I[iii,jjj,kkk])
                                 Z[loop_examples,loop_patch+patch_size] = alpha_sqrt * (L_examples[a,ii+iii,jj+jjj,kk+kkk]-L[iii,jjj,kkk])
@@ -228,7 +228,7 @@ def computeIMAPAValue(I, I_examples, L, L_examples, hps, hss, patch_size, num_ex
                     loop_examples += 1
 
     '''##Selection of KNN##'''
-    KNN = sorted(np.asarray(sorted(xrange(len(distance)), key=distance.__getitem__)[:K]))
+    KNN = sorted(np.asarray(sorted(range(len(distance)), key=distance.__getitem__)[:K]))
     distance = (distance)**-0.5
 
     '''##Compute LLE solution##'''
@@ -250,8 +250,8 @@ def computeIMAPAValue(I, I_examples, L, L_examples, hps, hss, patch_size, num_ex
 
 def computeOptKNNWeights(Pw,Pw_j,initialisation,reg=1e-03):
     Z=np.zeros([K,Pw_j.shape[1]])
-    dist_j=np.array([np.linalg.norm(Pw-Pw_j[j,:]) for j in xrange(num_atlasexamples)]) #distance between P and P_j
-    order=np.asarray(sorted(xrange(len(dist_j)), key=lambda lam: dist_j[lam])[:K])#les plus petits
+    dist_j=np.array([np.linalg.norm(Pw-Pw_j[j,:]) for j in range(num_atlasexamples)]) #distance between P and P_j
+    order=np.asarray(sorted(range(len(dist_j)), key=lambda lam: dist_j[lam])[:K])#les plus petits
     b=np.ones(len(order))
     w=np.array([initialisation[o] for o in order])
     Z=(Pw_j[order,:]-Pw)
@@ -260,7 +260,7 @@ def computeOptKNNWeights(Pw,Pw_j,initialisation,reg=1e-03):
     R = reg * trace if trace>0 else reg
     C.flat[::num_atlasexamples + 1] += R
     fmin = lambda x: np.linalg.norm(np.dot(C,x)-b)
-    sol = optimize.minimize(fmin, w, method='L-BFGS-B', bounds=[(0.,1.) for x in xrange(len(order))])#, constraints=cons)
+    sol = optimize.minimize(fmin, w, method='L-BFGS-B', bounds=[(0.,1.) for x in range(len(order))])#, constraints=cons)
     w = sol['x']
     weights=np.zeros([num_atlasexamples])
     if w.sum()!=0:
@@ -269,8 +269,8 @@ def computeOptKNNWeights(Pw,Pw_j,initialisation,reg=1e-03):
 
 
 def computeLPKNNWeights(Pw,Pw_j):
-    dist_j=np.array([np.sum((Pw-Pw_j[j,:])**2) for j in xrange(num_atlasexamples)]) #distance between Pw and Pw_j
-    order=sorted(xrange(len(dist_j)), key=lambda lam: dist_j[lam])[:K]#les plus petits
+    dist_j=np.array([np.sum((Pw-Pw_j[j,:])**2) for j in range(num_atlasexamples)]) #distance between Pw and Pw_j
+    order=sorted(range(len(dist_j)), key=lambda lam: dist_j[lam])[:K]#les plus petits
     w=np.exp(-(dist_j[order]/h))
     weights=np.zeros([num_atlasexamples])
     if np.sum(w)!=0:
@@ -311,7 +311,7 @@ if __name__ == '__main__':
     parser.add_argument('-o', '--output', help='Output name', type=str, default='output', required=False)
     parser.add_argument('-a', '--atlas', help='Anatomical atlas images in the input space (required)', type=str, nargs='*', required=True)
     parser.add_argument('-l', '--label', help='Label atlas images in the input space (required)', type=str, nargs='*', required=True)
-    parser.add_argument('-m', '--method', help='Segmentation method chosen', type=str, nargs='*', required=True)
+    parser.add_argument('-m', '--method', help='Segmentation method chosen (LP,S_opt,I_opt,IS_opt,IMAPA)', type=str, nargs='*', default=['IMAPA'], required=True)
     parser.add_argument('-mask', '--mask', help='Binary image for input', type=str, required=False)
     parser.add_argument('-hss', '--hss', help='Half search area input_size (default)', type=int, default=1, required=False)
     parser.add_argument('-hps', '--hps', help='Half path input_size', type=int, default=1, required=False)
@@ -364,7 +364,7 @@ if __name__ == '__main__':
             sys.exit()
     else:
         mask=np.zeros(input.shape)
-        for a in xrange(len(atlas)):
+        for a in range(len(atlas)):
             mask[label[a,:,:,:]>(np.max(label)*0.10)]=1
     K=args.k if hss[0]!=0 else num_atlas
     #Correct repetitions or outliers from methods introduced by the user#
@@ -444,7 +444,7 @@ if __name__ == '__main__':
     input_size=input.shape
 
     ptx,pty,ptz = np.where(mask==1)
-    points=[np.array([ptx[pti],pty[pti],ptz[pti]]) for pti in xrange(len(ptx))]
+    points=[np.array([ptx[pti],pty[pti],ptz[pti]]) for pti in range(len(ptx))]
 
     num_partitions=threads
     pointSplit=chunkIt(points,num_partitions)
@@ -463,7 +463,7 @@ if __name__ == '__main__':
         Inlm_s=np.zeros(input_size)
         Wnlm=np.zeros((len(points),num_atlasexamples))
         count=0
-        for part in xrange(num_partitions):
+        for part in range(num_partitions):
             Wnlm[count:count+len(pointSplit[part]),:]=tmp[part][0]
             Inlm_i+=tmp[part][1]
             Inlm_s+=tmp[part][2]
@@ -486,7 +486,7 @@ if __name__ == '__main__':
 
         Is_opt_i=np.zeros([input.shape[0],input.shape[1],input.shape[2]])
         Is_opt_s=np.zeros([input.shape[0],input.shape[1],input.shape[2]])
-        for part in xrange(num_partitions):
+        for part in range(num_partitions):
             Is_opt_i+=tmp[part][0]
             Is_opt_s+=tmp[part][1]
         try:
@@ -505,7 +505,7 @@ if __name__ == '__main__':
 
         Ii_opt_i=np.zeros([input.shape[0],input.shape[1],input.shape[2]])
         Ii_opt_s=np.zeros([input.shape[0],input.shape[1],input.shape[2]])
-        for part in xrange(num_partitions):
+        for part in range(num_partitions):
             Ii_opt_i+=tmp[part][0]
             Ii_opt_s+=tmp[part][1]
         try:
@@ -533,7 +533,7 @@ if __name__ == '__main__':
             Iis_opt_s=np.zeros([input.shape[0],input.shape[1],input.shape[2]])
             Wis_opt=np.zeros((len(points),num_atlasexamples))
             count=0
-            for part in xrange(num_partitions):
+            for part in range(num_partitions):
                 Wis_opt[count:count+len(pointSplit[part]),:]=tmp[part][0]
                 Iis_opt_i+=tmp[part][1]
                 Iis_opt_s+=tmp[part][2]
@@ -566,7 +566,7 @@ if __name__ == '__main__':
             pool.join()
             Iimapa_i=np.zeros([input.shape[0],input.shape[1],input.shape[2]])
             Iimapa_s=np.zeros([input.shape[0],input.shape[1],input.shape[2]])
-            for part in xrange(num_partitions):
+            for part in range(num_partitions):
                 Iimapa_i+=tmp[part][0]
                 Iimapa_s+=tmp[part][1]
             '''##Delete padding from result##'''
