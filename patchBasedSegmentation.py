@@ -323,7 +323,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if len(args.atlas)!=len(args.label):
-        print 'Number of atlas and label images have to be equal.'
+        print('Number of atlas and label images have to be equal.')
         sys.exit()
 
     ###--Load input data--###
@@ -332,13 +332,13 @@ if __name__ == '__main__':
         input=np.float32(nibabel.load(args.input).get_data())
         header=nibabel.load(args.input).affine
     except:
-        print 'Input anatomical image file not found.'
+        print('Input anatomical image file not found.')
         sys.exit()
     if args.seg != '':
         try:
             seg=np.float32(nibabel.load(args.seg).get_data())
         except:
-            print 'Input segmentation image file not found.'
+            print('Input segmentation image file not found.')
             sys.exit()
 
     hss=[args.hss,args.hss,args.hss]
@@ -353,14 +353,14 @@ if __name__ == '__main__':
         atlas=np.array([nibabel.load(a).get_data() for a in args.atlas])
         label=np.array([nibabel.load(a).get_data() for a in args.label])
     except:
-        print 'An anatomical or segmentation atlas file not found.'
+        print('An anatomical or segmentation atlas file not found.')
         sys.exit()
     #Check if the mask is given by the user, if not it built one from atlas segmentations#
     if args.mask!=None:
         try:
             mask=np.float32(nibabel.load(args.mask).get_data())
         except:
-            print 'Mask image file not found.'
+            print('Mask image file not found.')
             sys.exit()
     else:
         mask=np.zeros(input.shape)
@@ -377,22 +377,22 @@ if __name__ == '__main__':
             output['LP']=args.output+'_LP.nii.gz'
         elif m=='S_opt':
             if args.seg==None:
-                print 'Input segmentation image (ground truth) is required for this method.'
+                print('Input segmentation image (ground truth) is required for this method.')
                 sys.exit()
             output['S_opt']=args.output+'_S_opt.nii.gz'
         elif m=='I_opt':
             output['I_opt']=args.output+'_I_opt.nii.gz'
         elif m=='IS_opt':
             if args.seg==None:
-                print 'Input segmentation image (ground truth) is required for this method.'
+                print('Input segmentation image (ground truth) is required for this method.')
                 sys.exit()
             if args.alphas==None:
-                print 'Alpha parameter is required for this method.'
+                print('Alpha parameter is required for this method.')
                 sys.exit()
             output['IS_opt']=args.output+'_IS_opt.nii.gz'
         elif m=='IMAPA':
             if args.alphas==None:
-                print 'Alpha parameter is required for this method.'
+                print('Alpha parameter is required for this method.')
                 sys.exit()
             output['IMAPA']=args.output+'_IMAPA.nii.gz'
     alphas=args.alphas
@@ -406,20 +406,20 @@ if __name__ == '__main__':
 
     ###--Print Input Information--###
 
-    print 'Input anatomical image: ',args.input
-    print 'Input segmentation image (probability map): ',args.seg
-    print 'Anatomical exemple images: ',args.atlas
-    print 'Label exemple images: ',args.label
-    print 'Methods selected: ',method
+    print('Input anatomical image: ',args.input)
+    print('Input segmentation image (probability map): ',args.seg)
+    print('Anatomical exemple images: ',args.atlas)
+    print('Label exemple images: ',args.label)
+    print('Methods selected: ',method)
 
-    print 'Points to be processed: ',str(len(np.where(mask!=0)))
+    print('Points to be processed: ',str(len(np.where(mask!=0))))
 
-    print 'Half search area size: ',str(args.hss)
-    print 'Half patch size: ',str(args.hps)
-    print 'K: ',str(K)
+    print('Half search area size: ',str(args.hss))
+    print('Half patch size: ',str(args.hps))
+    print('K: ',str(K))
     if 'IMAPA' in method:
-        print 'Alpha parameter: ',str(alphas)
-    print 'Number of threads: ',str(threads)
+        print('Alpha parameter: ',str(alphas))
+    print('Number of threads: ',str(threads))
 
 
     #--Normalisation--#
@@ -473,7 +473,7 @@ if __name__ == '__main__':
             nibabel.save(nibabel.Nifti1Image(Inlm_i, header),output['LP']+'_I.nii.gz')
             nibabel.save(nibabel.Nifti1Image(Inlm_s, header),output['LP']+'_S.nii.gz')
         except:
-            print 'Error saving IMAPA result'
+            print('Error saving IMAPA result')
             sys.exit()
 
 
@@ -493,7 +493,7 @@ if __name__ == '__main__':
             nibabel.save(nibabel.Nifti1Image(Is_opt_i, header),output['S_opt']+'_I.nii.gz')
             nibabel.save(nibabel.Nifti1Image(Is_opt_s, header),output['S_opt']+'_S.nii.gz')
         except:
-            print 'Error saving S_opt result'
+            print('Error saving S_opt result')
             sys.exit()
 
     #--Compute I_opt--#
@@ -512,7 +512,7 @@ if __name__ == '__main__':
             nibabel.save(nibabel.Nifti1Image(Ii_opt_i, header),output['I_opt']+'_I.nii.gz')
             nibabel.save(nibabel.Nifti1Image(Ii_opt_s, header),output['I_opt']+'_S.nii.gz')
         except:
-            print 'Error saving I_opt result'
+            print('Error saving I_opt result')
             sys.exit()
 
 
@@ -542,7 +542,7 @@ if __name__ == '__main__':
                 nibabel.save(nibabel.Nifti1Image(Iis_opt_i, header),output['IS_opt']+'_I_'+str(alpha)+'.nii.gz')
                 nibabel.save(nibabel.Nifti1Image(Iis_opt_s, header),output['IS_opt']+'_S_'+str(alpha)+'.nii.gz')
             except:
-                print 'Error saving IS_opt result'
+                print('Error saving IS_opt result')
                 sys.exit()
 
 
@@ -555,7 +555,7 @@ if __name__ == '__main__':
         num_examples=(2*hss[0]+1)*(2*hss[1]+1)*(2*hss[2]+1)*(num_atlas)
 
         for alpha in alphas:
-            print 'Iteration with alpha = '+str(alpha)
+            print('Iteration with alpha = '+str(alpha))
             alpha1_sqrt=(1-alpha)**0.5
             alpha_sqrt=(alpha)**0.5
             Iimapa_i=None
@@ -576,9 +576,9 @@ if __name__ == '__main__':
                 nibabel.save(nibabel.Nifti1Image(Iimapa_i, header),output['IMAPA']+'_I_'+str(alpha)+'.nii.gz')
                 nibabel.save(nibabel.Nifti1Image(Iimapa_s, header),output['IMAPA']+'_S_'+str(alpha)+'.nii.gz')
             except:
-                print 'Error saving IMAPA result'
+                print('Error saving IMAPA result')
                 sys.exit()
 
 
 
-    print 'Script ran for '+str(np.round(time()-t0,2))+' s.'
+    print('Script ran for '+str(np.round(time()-t0,2))+' s.')
