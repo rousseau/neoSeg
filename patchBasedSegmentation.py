@@ -60,7 +60,7 @@ from numba import jit
 #--Internal functions--#
 
 def function_phi(x,C,b):
-    return np.linalg.norm(np.dot(C,x)-b)  #(np.dot(C,x)-b)**2
+    return np.linalg.norm(np.dot(C,x)-b)
 
 
 #--Methods--#
@@ -149,7 +149,7 @@ def IMAPA_threads(points):
     I = np.zeros(input.shape)
     S = np.zeros(input.shape)
     for vx in points:
-        I[vx[0],vx[1],vx[2]], S[vx[0],vx[1],vx[2]] = computeIMAPAValue(\
+        distance, Z, I_order, S_order = computeIMAPADistance(\
             input[vx[0]-hps[0]:vx[0]+hps[0]+1,\
                     vx[1]-hps[1]:vx[1]+hps[1]+1,\
                     vx[2]-hps[2]:vx[2]+hps[2]+1],\
@@ -163,6 +163,7 @@ def IMAPA_threads(points):
                     vx[1]-hss[1]-hps[1]:vx[1]+hss[1]+hps[1]+1,\
                     vx[2]-hss[2]-hps[2]:vx[2]+hss[2]+hps[2]+1],\
             hps, hss, patch_size, num_examples, num_atlas, K, alpha1_sqrt, alpha_sqrt)
+        I[vx[0],vx[1],vx[2]], S[vx[0],vx[1],vx[2]] = optimizeIMAPAWeights(distance, Z, I_order, S_order)
 
     return I, S
 
@@ -195,14 +196,14 @@ def extractExamples(data4D,vx):
     return P_j
 
 
-@jit
-def computeIMAPAValue(I, I_examples, L, L_examples, hps, hss, patch_size, num_examples, num_atlas, K, alpha1_sqrt, alpha_sqrt, reg=1e-03, epsilon=1e-06):
+@jit(nopython=True)
+def computeIMAPADistance(I, I_examples, L, L_examples, hps, hss, patch_size, num_examples, num_atlas, K, alpha1_sqrt, alpha_sqrt, epsilon=1e-06):
 
     loop_examples=0
-    I_order=np.zeros([num_examples])
-    S_order=np.zeros([num_examples])
-    distance=epsilon*np.ones([num_examples])
-    Z=np.zeros([num_examples,2*patch_size])
+    I_order=np.zeros(num_examples)
+    S_order=np.zeros(num_examples)
+    distance=epsilon*np.ones(num_examples)
+    Z=np.zeros((num_examples,2*patch_size))
     '''##Loop on atlas##'''
     for a in range(num_atlas):
         '''##Loop on search zone##'''
@@ -219,14 +220,16 @@ def computeIMAPAValue(I, I_examples, L, L_examples, hps, hss, patch_size, num_ex
                                 Z[loop_examples,loop_patch] = alpha1_sqrt * (I_examples[a,ii+iii,jj+jjj,kk+kkk]-I[iii,jjj,kkk])
                                 Z[loop_examples,loop_patch+patch_size] = alpha_sqrt * (L_examples[a,ii+iii,jj+jjj,kk+kkk]-L[iii,jjj,kkk])
                                 '''##Compute distance for initialise LLE##'''
-                                distance[loop_examples] += Z[loop_examples,loop_patch]**2
-                                distance[loop_examples] += Z[loop_examples,loop_patch+patch_size]**2
+                                distance[loop_examples] += Z[loop_examples,loop_patch]**2 + Z[loop_examples,loop_patch+patch_size]**2
                                 loop_patch += 1
                     I_order[loop_examples] = I_examples[a,ii+hps[0],jj+hps[1],kk+hps[2]]
                     S_order[loop_examples] = L_examples[a,ii+hps[0],jj+hps[1],kk+hps[2]]
 
                     loop_examples += 1
 
+    return distance, Z, I_order, S_order
+
+def optimizeIMAPAWeights(distance, Z, I_order,S_order, reg=1e-03):
     '''##Selection of KNN##'''
     KNN = sorted(np.asarray(sorted(range(len(distance)), key=distance.__getitem__)[:K]))
     distance = (distance)**-0.5
@@ -235,7 +238,6 @@ def computeIMAPAValue(I, I_examples, L, L_examples, hps, hss, patch_size, num_ex
     '''##Define bounds of weights##'''
     C_knn = np.dot(Z[KNN,:],np.transpose(Z[KNN,:]))
     '''##Add a identity matrix with a constant regularisation (reg)'''
-    # trace = np.trace(C_knn)
     R = reg * np.trace(C_knn) if np.trace(C_knn)>0 else reg
     C_knn.flat[::K + 1] += R
     '''##Compute LLE weights##'''
@@ -311,7 +313,7 @@ if __name__ == '__main__':
     parser.add_argument('-o', '--output', help='Output name', type=str, default='output', required=False)
     parser.add_argument('-a', '--atlas', help='Anatomical atlas images in the input space (required)', type=str, nargs='*', required=True)
     parser.add_argument('-l', '--label', help='Label atlas images in the input space (required)', type=str, nargs='*', required=True)
-    parser.add_argument('-m', '--method', help='Segmentation method chosen (LP,S_opt,I_opt,IS_opt,IMAPA)', type=str, nargs='*', default=['IMAPA'], required=True)
+    parser.add_argument('-m', '--method', help='Segmentation method chosen (LP,S_opt,I_opt,IS_opt,IMAPA)', type=str, nargs='*', default=['IMAPA'], required=False)
     parser.add_argument('-mask', '--mask', help='Binary image for input', type=str, required=False)
     parser.add_argument('-hss', '--hss', help='Half search area input_size (default)', type=int, default=1, required=False)
     parser.add_argument('-hps', '--hps', help='Half path input_size', type=int, default=1, required=False)
@@ -341,8 +343,8 @@ if __name__ == '__main__':
             print('Input segmentation image file not found.')
             sys.exit()
 
-    hss=[args.hss,args.hss,args.hss]
-    hps=[args.hps,args.hps,args.hps]
+    hss=np.array([args.hss,args.hss,args.hss])
+    hps=np.array([args.hps,args.hps,args.hps])
     beta=1.0
     h=np.float(2.0 * beta * (computeSigmaNoise(input)) * np.float((2*hps[0]+1)*(2*hps[1]+1)*(2*hps[2]+1)) )
     patch_size=(2*hps[0]+1)*(2*hps[1]+1)*(2*hps[2]+1)
@@ -362,14 +364,17 @@ if __name__ == '__main__':
         except:
             print('Mask image file not found.')
             sys.exit()
-    else:
+    elif args.mask=='atlas':
         mask=np.zeros(input.shape)
         for a in range(len(atlas)):
             mask[label[a,:,:,:]>(np.max(label)*0.10)]=1
+    else:
+        mask=np.ones(input.shape)
     K=args.k if hss[0]!=0 else num_atlas
     #Correct repetitions or outliers from methods introduced by the user#
     available_method=['LP','S_opt','I_opt','IS_opt','IMAPA']
     method=[m for m in set(args.method) if m not in list(set(args.method)-set(available_method))]
+    method=set(args.method)
     #Assign a dictionary for the outputs#
     output={}
     for m in method:
@@ -389,18 +394,23 @@ if __name__ == '__main__':
             if args.alphas==None:
                 print('Alpha parameter is required for this method.')
                 sys.exit()
-            output['IS_opt']=args.output+'_IS_opt.nii.gz'
+            output['IS_opt']=args.output+'_IS_opt'
         elif m=='IMAPA':
             if args.alphas==None:
                 print('Alpha parameter is required for this method.')
                 sys.exit()
-            output['IMAPA']=args.output+'_IMAPA.nii.gz'
+            output['IMAPA']=args.output+'_IMAPA'
+        else:
+            print('The method ',m,' is not found. Please use one of the available methods (LP, S_opt, I_opt, IS_opt or IMAPA).')
+            sys.exit()
     alphas=args.alphas
     #Compare the number of cores available against the user parameter#
     threads=multiprocessing.cpu_count()
     if (args.threads!=0) & (args.threads<threads):
         threads=args.threads
 
+
+    print(args.method)
 
 
 
@@ -424,7 +434,7 @@ if __name__ == '__main__':
 
     #--Normalisation--#
     maxinput = np.max(input)
-    maxlabel = np.max(atlas)
+    maxlabel = np.max(label)
     input /= maxinput
     atlas /= maxinput
     label /= maxlabel
