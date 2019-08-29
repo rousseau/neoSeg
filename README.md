@@ -74,6 +74,6 @@ Coming soon...
 
 ## Publications
 
--[1] C. Tor-Díez, N. Passat, I. Bloch, S. Faisan, N. Bednarek and F. Rousseau, “An iterative multi-atlas patch-based approach for cortex segmentation from neonatal MRI,” Computerized Medical Imaging and Graphics, 70:73–82, 2018, hal-01761063.
+- [1] C. Tor-Díez, N. Passat, I. Bloch, S. Faisan, N. Bednarek and F. Rousseau, “An iterative multi-atlas patch-based approach for cortex segmentation from neonatal MRI,” Computerized Medical Imaging and Graphics, 70:73–82, 2018, hal-01761063.
 
--[2] C. Tor-Díez, S. Faisan, L. Mazo, N. Bednarek, Hélène Meunier, I. Bloch, N. Passat and F. Rousseau, “Multilabel, multiscale topological transformation for cerebral MRI segmentation post-processing,” In 14th International Symposium on Mathematical Morphology (ISMM 2019), pp. 471–482, 2019, hal-01982972.
+- [2] C. Tor-Díez, S. Faisan, L. Mazo, N. Bednarek, Hélène Meunier, I. Bloch, N. Passat and F. Rousseau, “Multilabel, multiscale topological transformation for cerebral MRI segmentation post-processing,” In 14th International Symposium on Mathematical Morphology (ISMM 2019), pp. 471–482, 2019, hal-01982972.
