@@ -40,21 +40,30 @@ All scripts were coded in `python 2.7`, but we are working to be compatible to `
 
 ### patchBasedSegmentation.py
 
-Example of IMAPA application using a atlas set of two pairs of images using two iterations (`alpha` = 0 and 0.25) using 4 threads in parallel:
+Example of IMAPA application using a atlas set of two pairs of images using two iterations (`alpha = 0` and `alpha = 0.25`) using 4 threads in parallel:
 
 ```
 python neoSeg/patchBasedSegmentation.py  -i  brain.nii.gz -a  atlas1_registered_HM.nii.gz  atlas2_registered_HM.nii.gz -l  label1_propagated.nii.gz  label2_propagated.nii.gz  -mask mask.nii.gz  -m IMAPA  -hss 3  -hps 1  -k 15  -alphas 0 0.25  -t 4
 ```
 
 **i**: input anatomical image
+
 **a**: anatomical atlas images in the input space
+
 **l**: label atlas images in the input space
+
 **mask**: binary image for input
+
 **m**: segmentation method chosen (LP, S_opt, I_opt, IS_opt or IMAPA)
+
 **hss**: half search window size
+
 **hps**: half patch size
+
 **k**: k-Nearest Neighbors (kNN)
+
 **alphas**: alphas parameter for IS_opt and IMAPA methods
+
 **t**: Number of threads (0 for the maximum number of cores available)
 
 > Note: We recommend to previously register the intensity image from the atlas set to the input image, apply a histogram matching algorithm and propagate the transformations to the label maps.
