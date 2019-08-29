@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 
@@ -28,23 +28,6 @@
   The fact that you are presently reading this means that you have had
   knowledge of the CeCILL-B license and that you accept its terms.
 
-  #####################################################################
-  Python script consecrated to patch-based image segmentation. The methods
-  used are the Label Propagation (LP) algorithm (inspirated in the classical
-  Non-Local Means), an optimization regarding the real intensity (S_opt),
-  input image and an optimization regarding the real segmentation image
-  (I_opt), an optimization regarding both real intensity (IS_opt) and
-  segmentation and, a new one, an iterative optimization (IMAPA).
-
-
-  Thus, parameter --method can be multiple and adopt the next set of values:
-        -LP
-        -S_opt
-        -I_opt
-        -IS_opt
-        -IMAPA
-  #####################################################################
-
 """
 
 import argparse,sys,os
@@ -57,23 +40,29 @@ import multiprocessing
 from numba import jit
 
 
-#--Internal functions--#
-
-def function_phi(x,C,b):
-    return np.linalg.norm(np.dot(C,x)-b)
 
 
 #--Methods--#
 
 def LP_threads(args):
+    '''
+    Execute Label Propagation (LP) method(*).
+    (*) F. Rousseau, P. A. Habas, and C. Studholme, “A supervised patch-based approach for human
+        brain labeling,” IEEE Transactions on Medical Imaging, vol. 30, pp. 1852–1862, Oct. 2011.
+    -------------------------------
+    Input:  points --> voxels to be processed
+    Output: W      --> optimized weigths
+            I_i    --> estimation of the intensity input image
+            S_s    --> estimation of the label input map
+    '''
     (points)=args
     I_i=np.zeros([input.shape[0],input.shape[1],input.shape[2]])
     I_s=np.zeros([input.shape[0],input.shape[1],input.shape[2]])
     W=np.zeros([len(points),num_atlasexamples])
     for iv,vx in enumerate(points):
-        Pi=extractCentralPatch(input,vx)
-        Pa_j=extractExamples(atlas,vx)
-        Pl_j=extractExamples(label,vx)
+        Pi=extractCentralPatch(input,vx,hps)
+        Pa_j=extractExamples(atlas,vx,hss,hps)
+        Pl_j=extractExamples(label,vx,hss,hps)
         W[iv,:]=computeLPKNNWeights(Pi,Pa_j)
         I_i[vx[0],vx[1],vx[2]]=np.sum([W[iv,j]*Pa_j[j,center] for j in range(num_atlasexamples)], axis=0)
         I_s[vx[0],vx[1],vx[2]]=np.sum([W[iv,j]*Pl_j[j,center] for j in range(num_atlasexamples)], axis=0)
@@ -81,13 +70,21 @@ def LP_threads(args):
 
 
 def S_opt_threads(args):
+    '''
+    Execute Segmentation optimized (S_opt) method.
+    -------------------------------
+    Input:  points --> voxels to be processed
+            Wini   --> initialization of weights
+    Output: I_i    --> estimation of the intensity input image
+            I_s    --> estimation of the label input map
+    '''
     (points,Wini)=args
     I_i=np.zeros(input_size)
     I_s=np.zeros(input_size)
     for iv,vx in enumerate(points):
-        Ps=extractCentralPatch(seg,vx)
-        Pa_j=extractExamples(atlas,vx)
-        Pl_j=extractExamples(label,vx)
+        Ps=extractCentralPatch(seg,vx,hps)
+        Pa_j=extractExamples(atlas,vx,hss,hps)
+        Pl_j=extractExamples(label,vx,hss,hps)
         Ws_opt=computeOptKNNWeights(Ps,Pl_j,Wini[iv,:])
         I_i[vx[0],vx[1],vx[2]]=np.sum([Ws_opt[j]*Pa_j[j,center] for j in range(num_atlasexamples)], axis=0)
         I_s[vx[0],vx[1],vx[2]]=np.sum([Ws_opt[j]*Pl_j[j,center] for j in range(num_atlasexamples)], axis=0)
@@ -95,13 +92,21 @@ def S_opt_threads(args):
 
 
 def I_opt_threads(args):
+    '''
+    Execute Intensity optimized (I_opt) method.
+    -------------------------------
+    Input:  points --> voxels to be processed
+            Wini   --> initialization of weights
+    Output: I_i    --> estimation of the intensity input image
+            I_s    --> estimation of the label input map
+    '''
     (points,Wini)=args
     I_i=np.zeros(input_size)
     I_s=np.zeros(input_size)
     for iv,vx in enumerate(points):
-        Pi=extractCentralPatch(input,vx)
-        Pa_j=extractExamples(atlas,vx)
-        Pl_j=extractExamples(label,vx)
+        Pi=extractCentralPatch(input,vx,hps)
+        Pa_j=extractExamples(atlas,vx,hss,hps)
+        Pl_j=extractExamples(label,vx,hss,hps)
         Wi_opt=computeOptKNNWeights(Pi,Pa_j,Wini[iv,:])
         I_i[vx[0],vx[1],vx[2]]=np.sum([Wi_opt[j]*Pa_j[j,center] for j in range(num_atlasexamples)], axis=0)
         I_s[vx[0],vx[1],vx[2]]=np.sum([Wi_opt[j]*Pl_j[j,center] for j in range(num_atlasexamples)], axis=0)
@@ -109,15 +114,24 @@ def I_opt_threads(args):
 
 
 def IS_opt_threads(args):
+    '''
+    Execute Intensity & Segmentation optimized (IS_opt) method.
+    -------------------------------
+    Input:  points --> voxels to be processed
+            Wini   --> initialization of weights
+    Output: Witer  --> optimized weights
+            I_i    --> estimation of the intensity input image
+            I_s    --> estimation of the label input map
+    '''
     (points,Wini)=args
     I_i=np.zeros([input.shape[0],input.shape[1],input.shape[2]])
     I_s=np.zeros([input.shape[0],input.shape[1],input.shape[2]])
     Witer=np.zeros([len(points),num_atlasexamples])
     for iv,vx in enumerate(points):
-        Pi=extractCentralPatch(input,vx)
-        Ps=extractCentralPatch(seg,vx)
-        Pa_j=extractExamples(atlas,vx)
-        Pl_j=extractExamples(label,vx)
+        Pi=extractCentralPatch(input,vx,hps)
+        Ps=extractCentralPatch(seg,vx,hps)
+        Pa_j=extractExamples(atlas,vx,hss,hps)
+        Pl_j=extractExamples(label,vx,hss,hps)
         Pis=np.concatenate((Pi,Ps))
         Pis_j=np.concatenate((Pa_j,Pl_j),axis=1)
         Witer[iv,:]=computeOptKNNWeights(Pis,Pis_j,Wini[iv,:])
@@ -126,30 +140,25 @@ def IS_opt_threads(args):
     return Witer,I_i,I_s
 
 
-def IMAPA_ValueWeights_threads(args):
-    (points,Wini)=args
-    I_i=np.zeros([input.shape[0],input.shape[1],input.shape[2]])
-    I_s=np.zeros([input.shape[0],input.shape[1],input.shape[2]])
-    Witer=np.zeros([len(points),num_atlasexamples])
-    for iv,vx in enumerate(points):
-        Pi=extractCentralPatch(input,vx)
-        Pa_j=extractExamples(atlas,vx)
-        Pl_j=extractExamples(label,vx)
-        hatPs=np.sum([Wini[iv,j]*Pl_j[j,:] for j in range(num_atlasexamples)], axis=0)
-        Pis=np.concatenate((Pi,hatPs))
-        Pis_j=np.concatenate((Pa_j,Pl_j),axis=1)
-        Witer[iv,:]=computeOptKNNWeights(Pis,Pis_j,Wini[iv,:])
-        I_i[vx[0],vx[1],vx[2]]=np.sum([Witer[iv,j]*Pa_j[j,center] for j in range(num_atlasexamples)], axis=0)
-        I_s[vx[0],vx[1],vx[2]]=np.sum([Witer[iv,j]*Pl_j[j,center] for j in range(num_atlasexamples)], axis=0)
-    return Witer,I_i,I_s
 
 
 def IMAPA_threads(points):
+    '''
+    Execute IMAPA method(*).
+    (*) C. Tor-Díez, N. Passat, I. Bloch, S. Faisan, N. Bednarek and F. Rousseau,
+        “An iterative multi-atlas patch-based approach for cortex segmentation from
+        neonatal MRI,” Computerized Medical Imaging and Graphics, 70:73–82,
+        2018, hal-01761063.
+    -------------------------------
+    Input:  points --> voxels to be processed
+    Output: I      --> estimation of the intensity input image
+            S      --> estimation of the label input map
+    '''
     ##Process every voxel##
     I = np.zeros(input.shape)
     S = np.zeros(input.shape)
     for vx in points:
-        distance, Z, I_order, S_order = computeIMAPADistance(\
+        distance, Z, I_order, L_order = computeIMAPADistance(\
             input[vx[0]-hps[0]:vx[0]+hps[0]+1,\
                     vx[1]-hps[1]:vx[1]+hps[1]+1,\
                     vx[2]-hps[2]:vx[2]+hps[2]+1],\
@@ -163,7 +172,8 @@ def IMAPA_threads(points):
                     vx[1]-hss[1]-hps[1]:vx[1]+hss[1]+hps[1]+1,\
                     vx[2]-hss[2]-hps[2]:vx[2]+hss[2]+hps[2]+1],\
             hps, hss, patch_size, num_examples, num_atlas, K, alpha1_sqrt, alpha_sqrt)
-        I[vx[0],vx[1],vx[2]], S[vx[0],vx[1],vx[2]] = optimizeIMAPAWeights(distance, Z, I_order, S_order)
+
+        I[vx[0],vx[1],vx[2]], S[vx[0],vx[1],vx[2]] = optimizeIMAPAWeights(distance, Z, I_order, L_order)
 
     return I, S
 
@@ -171,13 +181,30 @@ def IMAPA_threads(points):
 
 #--Tools--#
 
-def extractCentralPatch(data,vx):
+def extractCentralPatch(data,vx,hps):
+    '''
+    Extract a patch from a 3D image.
+    -------------------------------
+    Input:  data --> 3D image
+            vx   --> central voxel of the patch
+            hps  --> half patch size
+    Output: P    --> central patch
+    '''
     patch_size=(2*hps[0]+1)*(2*hps[1]+1)*(2*hps[2]+1)
     P=data[vx[0]-hps[0]:vx[0]+hps[0]+1,vx[1]-hps[1]:vx[1]+hps[1]+1,vx[2]-hps[2]:vx[2]+hps[2]+1].reshape([patch_size])
     return P
 
 
-def extractExamples(data4D,vx):
+def extractExamples(data4D,vx,hss,hps):
+    '''
+    Extract patches from a stack 3D images.
+    -------------------------------
+    Input:  data4D --> stack of 3D images
+            vx   --> central voxel of the patches
+            hss  --> half search window size
+            hps  --> half patch size
+    Output: P_j    --> stack of central patches
+    '''
     P_j=np.zeros([num_atlasexamples,patch_size])
     count=0
     for ind in range(num_atlas):
@@ -198,10 +225,31 @@ def extractExamples(data4D,vx):
 
 @jit(nopython=True)
 def computeIMAPADistance(I, I_examples, L, L_examples, hps, hss, patch_size, num_examples, num_atlas, K, alpha1_sqrt, alpha_sqrt, epsilon=1e-06):
-
+    '''
+    First step of the IMAPA method for computing the weights:
+    it computes the distance between patches.
+    -------------------------------
+    Input:  I           --> input image to be labeled
+            I_examples  --> intensity images from the atlas set
+            L           --> estimation of input label map
+            L_examples  --> label images from the atlas set
+            hps         --> half patch size
+            hss         --> half search window size
+            patch_size  --> number of voxels in a patch
+            num_examples--> number of patches in the atlas set
+            num_atlas   --> number of images in the atlas set
+            K           --> k-Nearest Neighbors (kNN)
+            alpha1_sqrt --> square root of (1-alpha)
+            alpha_sqrt  --> square root of (alpha)
+            epsilon     --> small term for inversion purpose
+    Output: distance    --> distance L2 between input patch and example patches
+            Z           --> distance L1 between input patch and example patches
+            I_order     --> sequence of intensity examples
+            L_order     --> sequence of label examples
+    '''
     loop_examples=0
     I_order=np.zeros(num_examples)
-    S_order=np.zeros(num_examples)
+    L_order=np.zeros(num_examples)
     distance=epsilon*np.ones(num_examples)
     Z=np.zeros((num_examples,2*patch_size))
     '''##Loop on atlas##'''
@@ -223,13 +271,26 @@ def computeIMAPADistance(I, I_examples, L, L_examples, hps, hss, patch_size, num
                                 distance[loop_examples] += Z[loop_examples,loop_patch]**2 + Z[loop_examples,loop_patch+patch_size]**2
                                 loop_patch += 1
                     I_order[loop_examples] = I_examples[a,ii+hps[0],jj+hps[1],kk+hps[2]]
-                    S_order[loop_examples] = L_examples[a,ii+hps[0],jj+hps[1],kk+hps[2]]
+                    L_order[loop_examples] = L_examples[a,ii+hps[0],jj+hps[1],kk+hps[2]]
 
                     loop_examples += 1
 
-    return distance, Z, I_order, S_order
+    return distance, Z, I_order, L_order
 
-def optimizeIMAPAWeights(distance, Z, I_order,S_order, reg=1e-03):
+
+def optimizeIMAPAWeights(distance, Z, I_order,L_order, reg=1e-03):
+    '''
+    Second step of the IMAPA method for computing the weights:
+    it optimize the weights given distances between patches.
+    -------------------------------
+    Input:  distance  --> distance L2 between input patch and example patches
+            Z         --> distance L1 between input patch and example patches
+            I_order   --> sequence of intensity examples
+            L_order   --> sequence of label examples
+            reg       --> regularization term for ensuring a non-invertible covariance matrix
+    Output: I_new     --> estimation of the intensity input image
+            L_new     --> estimation of the label input map
+    '''
     '''##Selection of KNN##'''
     KNN = sorted(np.asarray(sorted(range(len(distance)), key=distance.__getitem__)[:K]))
     distance = (distance)**-0.5
@@ -245,17 +306,32 @@ def optimizeIMAPAWeights(distance, Z, I_order,S_order, reg=1e-03):
 
     '''##Estimate outputs with new weights##'''
     I_new = np.sum(np.dot(weights,I_order[KNN]))/np.sum(weights)
-    S_new = np.sum(np.dot(weights,S_order[KNN]))/np.sum(weights)
+    L_new = np.sum(np.dot(weights,L_order[KNN]))/np.sum(weights)
 
-    return I_new, S_new
+    return I_new, L_new
 
 
-def computeOptKNNWeights(Pw,Pw_j,initialisation,reg=1e-03):
+def computeOptKNNWeights(Pw,Pw_j,initialization,reg=1e-03):
+    '''
+    Computating the k weights of the kNN atlas patches by following the
+    Locally Linear Embedding (LLE) algorithm optimization(*):
+
+        weights_{opt}  =  argmin_w  \| Pw - \sum_j( w * Pw_j ) \|
+
+    (*) S. T. Roweis and L. K. Saul, “Nonlinear dimensionality reduction by locally linear
+        embedding,” Science, vol. 290, pp. 2323–2326, Dec. 2000.
+    -------------------------------
+    Input:  Pw             --> input patch
+            Pw_j           --> stack of patches from the atlas set
+            initialization --> initialization for the opitmization weights
+            reg            --> regularization term for ensuring a non-invertible covariance matrix
+    Output: weights        --> optimized k weights for the kNN patches
+    '''
     Z=np.zeros([K,Pw_j.shape[1]])
     dist_j=np.array([np.linalg.norm(Pw-Pw_j[j,:]) for j in range(num_atlasexamples)]) #distance between P and P_j
     order=np.asarray(sorted(range(len(dist_j)), key=lambda lam: dist_j[lam])[:K])#les plus petits
     b=np.ones(len(order))
-    w=np.array([initialisation[o] for o in order])
+    w=np.array([initialization[o] for o in order])
     Z=(Pw_j[order,:]-Pw)
     C=np.dot(Z,np.transpose(Z))
     trace = np.trace(C)
@@ -271,6 +347,15 @@ def computeOptKNNWeights(Pw,Pw_j,initialisation,reg=1e-03):
 
 
 def computeLPKNNWeights(Pw,Pw_j):
+    '''
+    Computating the k weights of the kNN atlas patches by following the Label Propagation method(*).
+    (*) F. Rousseau, P. A. Habas, and C. Studholme, “A supervised patch-based approach for human
+        brain labeling,” IEEE Transactions on Medical Imaging, vol. 30, pp. 1852–1862, Oct. 2011.
+    -------------------------------
+    Input:  Pw       --> input patch
+            Pw_j     --> stack of patches from the atlas set
+    Output: weights  --> optimized k weights for the kNN patches
+    '''
     dist_j=np.array([np.sum((Pw-Pw_j[j,:])**2) for j in range(num_atlasexamples)]) #distance between Pw and Pw_j
     order=sorted(range(len(dist_j)), key=lambda lam: dist_j[lam])[:K]#les plus petits
     w=np.exp(-(dist_j[order]/h))
@@ -281,14 +366,46 @@ def computeLPKNNWeights(Pw,Pw_j):
 
 
 def computeSigmaNoise(img):
+    '''
+    Computating the variation of the image noise by following an optimization of NLM for MR images(*).
+    (*) P. Coupé, P. Yger, S. Prima, P. Hellier, C. Kervrann, and C. Barillot, “An
+        Optimized Blockwise Nonlocal Means Denoising Filter for 3-D Magnetic Resonance
+        Images,” IEEE Transactions on Medical Imaging, vol. 27, pp. 425–441, Apr. 2008.
+    -------------------------------
+    Input:  img     --> 3D image
+    Output: sigma2  --> variation of image noise
+    '''
     hx=np.array([[[0.,0.,0.],[0.,-(1./6.),0.],[0.,0.,0.]],
                     [[0.,-(1./6.),0.],[-(1./6.),1.,-(1./6.)],[0.,-(1./6.),0.]],
                     [[0.,0.,0.],[0.,-(1./6.),0.],[0.,0.,0.]]])
+
     sigma2=(6.0/7.0) * np.sum(np.square(ndimage.convolve(img,hx))) / np.float(img.shape[0]*img.shape[1]*img.shape[2])
     return sigma2
 
 
+
+def function_phi(x,C,b):
+    '''
+    Linear system to be solved:
+        C * x = b
+    -------------------------------
+    Input:  x --> weights
+            C --> covariance matrix
+            b --> array of all ones
+    Output: norm 2 of the product of C and x minus b
+    '''
+    return np.linalg.norm(np.dot(C,x)-b)
+
+
+
 def chunkIt(seq, num):
+    '''
+    Split a sequence in blocks of sequences.
+    -------------------------------
+    Input:  seq --> sequence to be splitted
+            num --> number of blocks
+    Output: out --> sequence containing blocks of sequences
+    '''
     avg = len(seq) / float(num)
     out = []
     last = 0.0
@@ -304,6 +421,35 @@ def chunkIt(seq, num):
 
 
 if __name__ == '__main__':
+    '''
+    Python script consecrated to patch-based image segmentation. The methods
+    used are the Label Propagation (LP) algorithm (inspirated in the classical
+    Non-Local Means), an optimization regarding the real intensity (S_opt),
+    input image and an optimization regarding the real segmentation image
+    (I_opt), an optimization regarding both real intensity (IS_opt) and
+    segmentation and, a new one, an iterative optimization (IMAPA).
+
+
+    Thus, parameter --method can be multiple and adopt the next set of values:
+          -LP
+          -S_opt
+          -I_opt
+          -IS_opt
+          -IMAPA
+
+
+    Example of utilisation in your terminal:
+
+        python neoSeg/patchBasedSegmentation.py  -i  brain.nii.gz
+            -a  atlas1_registered_HM.nii.gz  atlas2_registered_HM.nii.gz
+            -l  label1_propagated.nii.gz  label2_propagated.nii.gz
+            -mask mask.nii.gz  -m IMAPA  -hss 3  -hps 1  -k 15  -alphas 0 0.25  -t 4
+
+        Note:   We recommend to previously register the intensity image from the atlas set
+                to the input image, apply a histogram matching algorithm and propagate
+                the transformations to the label maps.
+    '''
+
     t0=time()
     np.seterr(divide='ignore', invalid='ignore')
     parser = argparse.ArgumentParser(prog='patchAnalysis')
@@ -313,12 +459,14 @@ if __name__ == '__main__':
     parser.add_argument('-o', '--output', help='Output name', type=str, default='output', required=False)
     parser.add_argument('-a', '--atlas', help='Anatomical atlas images in the input space (required)', type=str, nargs='*', required=True)
     parser.add_argument('-l', '--label', help='Label atlas images in the input space (required)', type=str, nargs='*', required=True)
-    parser.add_argument('-m', '--method', help='Segmentation method chosen (LP,S_opt,I_opt,IS_opt,IMAPA)', type=str, nargs='*', default=['IMAPA'], required=False)
+    parser.add_argument('-m', '--method', help='Segmentation method chosen (LP, S_opt, I_opt, IS_opt or IMAPA)', type=str, nargs='*', default=['IMAPA'], required=False)
     parser.add_argument('-mask', '--mask', help='Binary image for input', type=str, required=False)
-    parser.add_argument('-hss', '--hss', help='Half search area input_size (default)', type=int, default=1, required=False)
-    parser.add_argument('-hps', '--hps', help='Half path input_size', type=int, default=1, required=False)
-    parser.add_argument('-k', '--k', help='k-Nearest Neighbours (kNN)', type=int, default=20, required=False)
-    parser.add_argument('-alphas', '--alphas', help='Alpha parameter for IMAPA', type=float, nargs='*', required=False)
+    parser.add_argument('-hss', '--hss', help='Half search window input_size', type=int, default=1, required=False)
+    parser.add_argument('-hps', '--hps', help='Half patch input_size', type=int, default=1, required=False)
+    parser.add_argument('-k', '--k', help='k-Nearest Neighbors (kNN)', type=int, default=20, required=False)
+    parser.add_argument('-alphas', '--alphas', help='Alphas parameter for IS_opt and IMAPA methods. The number of values determines \
+                                                    the iterations. Example: [0.0, 0.25] -> 2 iterations, first with alpha = 0.0 and \
+                                                    alpha = 0.25.', type=float, nargs='*', required=False)
     parser.add_argument('-t', '--threads', help='Number of threads (0 for the maximum number of cores available)', type=int, default=4, required=False)
 
 
