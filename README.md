@@ -9,7 +9,7 @@
 
 ## Introduction
 
-This repository contains the work during my PhD, titled "Automatic segmentation of the cortical surface in neonatal brain MRI". It includes two main contributions:
+This repository contains the work during the PhD of Carlos Tor-Díez, titled "Automatic segmentation of the cortical surface in neonatal brain MRI". It includes two main contributions:
 
 - **patchBasedSegmentation.py**, where several methods of label fusion (the final step of the multi-atlas segmentation approaches) are performed, including IMAPA [1].
 - **topologicalCorrection.py**, where a topological correction for segmentation is presented, which consists in a multi-scale, multi-label homotopic deformation [2].
@@ -32,9 +32,21 @@ All scripts were coded in `python 2.7`, but we are working to be compatible to `
 - math
 - random
 - matplotlib
-- skimage
-- skfmm
+- scikit-image (skimage)
+- scikit-fmm (skfmm)
 </details>
+
+The file called `requirements.txt` helps to install all the python libraries.
+
+- Using pip:
+```
+pip install -r requirements.txt
+```
+
+- Using anaconda:
+```
+conda install --file requirements.txt
+```
 
 ## Run
 

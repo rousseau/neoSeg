@@ -466,7 +466,7 @@ if __name__ == '__main__':
     parser.add_argument('-k', '--k', help='k-Nearest Neighbors (kNN)', type=int, default=20, required=False)
     parser.add_argument('-alphas', '--alphas', help='Alphas parameter for IS_opt and IMAPA methods. The number of values determines \
                                                     the iterations. Example: [0.0, 0.25] -> 2 iterations, first with alpha = 0.0 and \
-                                                    alpha = 0.25.', type=float, nargs='*', required=False)
+                                                    alpha = 0.25.', type=float, nargs='*', default=[0.0, 0.25], required=False)
     parser.add_argument('-t', '--threads', help='Number of threads (0 for the maximum number of cores available)', type=int, default=4, required=False)
 
 
@@ -572,8 +572,8 @@ if __name__ == '__main__':
 
     print('Points to be processed: ',str(len(np.where(mask!=0))))
 
-    print('Half search area size: ',str(args.hss))
-    print('Half patch size: ',str(args.hps))
+    print('Half search window size: ',str(args.hss),' voxels')
+    print('Half patch size: ',str(args.hps),' voxels')
     print('K: ',str(K))
     if 'IMAPA' in method:
         print('Alpha parameter: ',str(alphas))

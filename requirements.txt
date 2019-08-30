@@ -1,0 +1,7 @@
+nibabel
+numpy
+scipy
+numba
+matplotlib
+scikit-image
+scikit-fmm
