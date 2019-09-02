@@ -461,9 +461,9 @@ if __name__ == '__main__':
     parser.add_argument('-l', '--label', help='Label atlas images in the input space (required)', type=str, nargs='*', required=True)
     parser.add_argument('-m', '--method', help='Segmentation method chosen (LP, S_opt, I_opt, IS_opt or IMAPA)', type=str, nargs='*', default=['IMAPA'], required=False)
     parser.add_argument('-mask', '--mask', help='Binary image for input', type=str, required=False)
-    parser.add_argument('-hss', '--hss', help='Half search window input_size', type=int, default=1, required=False)
+    parser.add_argument('-hss', '--hss', help='Half search window input_size', type=int, default=3, required=False)
     parser.add_argument('-hps', '--hps', help='Half patch input_size', type=int, default=1, required=False)
-    parser.add_argument('-k', '--k', help='k-Nearest Neighbors (kNN)', type=int, default=20, required=False)
+    parser.add_argument('-k', '--k', help='k-Nearest Neighbors (kNN)', type=int, default=15, required=False)
     parser.add_argument('-alphas', '--alphas', help='Alphas parameter for IS_opt and IMAPA methods. The number of values determines \
                                                     the iterations. Example: [0.0, 0.25] -> 2 iterations, first with alpha = 0.0 and \
                                                     alpha = 0.25.', type=float, nargs='*', default=[0.0, 0.25], required=False)
