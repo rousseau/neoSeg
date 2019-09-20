@@ -727,6 +727,7 @@ if __name__ == '__main__':
             for part in range(num_partitions):
                 Iimapa_i+=tmp[part][0]
                 Iimapa_s+=tmp[part][1]
+            hatLabel = Iimapa_s
             '''##Delete padding from result##'''
             Iimapa_i = Iimapa_i[padding[0][0]:-padding[0][1],padding[1][0]:-padding[1][1],padding[2][0]:-padding[2][1]]
             Iimapa_s = Iimapa_s[padding[0][0]:-padding[0][1],padding[1][0]:-padding[1][1],padding[2][0]:-padding[2][1]]
