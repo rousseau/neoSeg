@@ -5,7 +5,18 @@ from skimage import measure
 
 
 
+
+############## Functions for a binary image ##############
+
 def isBinarySimplePoint6_26(im):
+    '''
+    Check the simplicity of a point in a binary image considering the object and
+    the background in 6-adjancy and 26-adjancy respectly.
+    -------------------------------
+    Input:  im      --> A binary image of size 3x3x3
+    Output: simplicity  --> A digit that provides the simplicity for the label
+                            (0: non-simple pair, 1: simple pair)
+    '''
     X = im.copy()
     ### 6-connected test ###
     ## X without corners ##
@@ -30,6 +41,14 @@ def isBinarySimplePoint6_26(im):
 
 
 def isBinarySimplePoint26_6(im):
+    '''
+    Check the simplicity of a point in a binary image considering the object and
+    the background in 26-adjancy and 6-adjancy respectly.
+    -------------------------------
+    Input:  im      --> A binary image of size 3x3x3
+    Output: simplicity  --> A digit that provides the simplicity for the label
+                            (0: non-simple pair, 1: simple pair)
+    '''
     X = im.copy()
     ### 26-connected test ###
     X[1,1,1] = 0
@@ -52,7 +71,19 @@ def isBinarySimplePoint26_6(im):
 
 
 
+    ## Simple pairs ##
+
 def isBinarySimplePair6_26(im,center):
+    '''
+    Check the simplicity of a pair in a binary image considering the object and
+    the background in 6-adjancy and 26-adjancy respectly.
+    -------------------------------
+    Input:  im      --> A binary image of size 4x3x3 or 3x4x3 or 3x3x4
+            center  --> Coordinates of the pair that corresponds to the
+                        center of the multilabel image
+    Output: simplicity  --> A digit that provides the simplicity for the label
+                            (0: non-simple pair, 1: simple pair)
+    '''
     X = im.copy()
     ### 6-connected test ####
     ## X without corners ##
@@ -74,7 +105,8 @@ def isBinarySimplePair6_26(im,center):
         ### 26-connected background test ###
         ## Complementary of X ##
         X = 1-im
-        X[center] = 1-X[1,1,1]
+        # X[center] = 1-X[1,1,1]
+        X[center] = 0
         ## Labels 26-connected ##
         label,numLabel=measure.label(X,connectivity=3,return_num=True)
         if numLabel==1:
@@ -84,9 +116,20 @@ def isBinarySimplePair6_26(im,center):
 
 
 def isBinarySimplePair26_6(im,center):
+    '''
+    Check the simplicity of a pair in a binary image considering the object and
+    the background in 26-adjancy and 6-adjancy respectly.
+    -------------------------------
+    Input:  im      --> A binary image of size 4x3x3 or 3x4x3 or 3x3x4
+            center  --> Coordinates of the pair that corresponds to the
+                        center of the multilabel image
+    Output: simplicity  --> A digit that provides the simplicity for the label
+                            (0: non-simple pair, 1: simple pair)
+    '''
     X = im.copy()
     ### 26-connected test ###
-    X[center] = 1-X[1,1,1]
+    # X[center] = 1-X[1,1,1]
+    X[center] = 0
     ## Labels 26-connected ##
     label,numLabel=measure.label(X,connectivity=3,return_num=True)
     if numLabel==1:
@@ -116,7 +159,23 @@ def isBinarySimplePair26_6(im,center):
 
 
 
+
+
+
+############## Functions for a multilabel image ##############
+
+
 def isSimple6_26(im,topologyList,totalLabel):
+    '''
+    Check the simplicity of a point in multiple labels considering the object and
+    the background in 6-adjancy and 26-adjancy respectly.
+    -------------------------------
+    Input:  im              --> A multilabel image of size 3x3x3
+            topologyList    --> Configuration of label topologies to be preserved
+            totalLabel      --> Number of labels
+    Output: simplicity  --> An array given the simplicity in each label
+                            (0: non-simple point, 1: simple point)
+    '''
     simplicity=np.zeros([totalLabel],dtype=int)
     im_c=im.copy()
     im_c[im_c==im[1,1,1]]=-1
@@ -137,7 +196,17 @@ def isSimple6_26(im,topologyList,totalLabel):
     return simplicity
 
 def isSimple26_6(im,topologyList,totalLabel):
-    simplicity=np.zeros([totalLabel],dtype=int)
+    '''
+    Check the simplicity of a point in multiple labels considering the object and
+    the background in 26-adjancy and 6-adjancy respectly.
+    -------------------------------
+    Input:  im              --> A multilabel image of size 3x3x3
+            topologyList    --> Configuration of label topologies to be preserved
+            totalLabel      --> Number of labels
+    Output: simplicity  --> An array given the simplicity in each label
+                            (0: non-simple point, 1: simple point)
+    '''
+    simplicity=[0]*totalLabel #np.zeros([totalLabel],dtype=int)
     im_c=im.copy()
     im_c[im_c==im[1,1,1]]=-1
     candidatesLabel=np.unique(im_c)[1:]
@@ -145,7 +214,6 @@ def isSimple26_6(im,topologyList,totalLabel):
         simplicityLabel=1
         ## Discard when current label and evalued label are in a topology group or there are not at all ##
         topoResList=[topo for topo in topologyList if ((cand in topo) + (im[1,1,1] in topo))==1]
-        ## Evaluate label simplicity in each topology ##
         for topo in topoResList:
             im_c=np.zeros(im.shape)
             ## Evaluation of all labels ##
@@ -158,37 +226,64 @@ def isSimple26_6(im,topologyList,totalLabel):
 
 
 
-# OLDdef isSimple26_6(im,topologyList,totalLabel):
-#     simplicity=np.zeros([totalLabel],dtype=int)
-#     im_c=im.copy()
-#     im_c[im_c==im[1,1,1]]=-1
-#     candidatesLabel=np.unique(im_c)[1:]
-#     numLabel=len(candidatesLabel)
-#     ## Loop of labels in the neighbourhood of (x,y,z) ##
-#     while(numLabel>0):
-#         #evalLabel=candidatesLabel[numLabel-1]
-#         simplicityLabel=1
-#         numTopology=len(topologyList)
-#         ## Evaluate label simplicity in each topology ##
-#         while((simplicityLabel==1) & (numTopology>0)):
-#             ## Discard when current label and evalued label are in a topology group or there are not at all ##
-#             im_c=im.copy()
-#             ## Evaluation of all labels ##
-#             for l in xrange(totalLabel):
-#                 im_c[im==l]=1 if l in topologyList[numTopology-1] else 0
-#             if len(np.unique(im_c))>1:
-#                 simplicityLabel=isBinarySimplePoint26_6(im_c)
-#             numTopology-=1
-#         simplicity[candidatesLabel[numLabel-1]]=simplicityLabel
-#         numLabel-=1
-#     return simplicity
+def isSimpleConn(im,topologyList,connectivityList,totalLabel):
+    '''
+    Check the simplicity of a point in multiple labels given the connectivity
+    configuration (only available in 6/26 or 26/6).
+    -------------------------------
+    Input:  im                  --> A multilabel image of size 3x3x3
+            topologyList        --> Configuration of label topologies
+            connectivityList    --> Configuration of label connectivity
+            totalLabel          --> Number of labels
+    Output: simplicity  --> An array given the simplicity in each label
+                            (0: non-simple point, 1: simple point)
+    '''
+    simplicity=[0]*totalLabel #np.zeros([totalLabel],dtype=int)
+    im_c=im.copy()
+    im_c[im_c==im[1,1,1]]=-1
+    candidatesLabel=np.unique(im_c)[1:]
+    for cand in candidatesLabel:
+        simplicityLabel=1
+        ## Discard when current label and evalued label are in a topology group or there are not at all ##
+        topoResList=[topo for topo in topologyList if ((cand in topo) + (im[1,1,1] in topo))==1]
+        for topo in topoResList:
+            im_c=np.zeros(im.shape)
+            ## Evaluation of all labels ##
+            # conn=connectivityList[topologyList.index(topo)]
+            for t in topo:
+                im_c+=1*(im==t)
+            if (len(np.unique(im_c))>1):
+                if connectivityList[topologyList.index(topo)]==26:
+                    simplicityLabel*=isBinarySimplePoint26_6(im_c)
+                elif connectivityList[topologyList.index(topo)]==6:
+                    simplicityLabel*=isBinarySimplePoint6_26(im_c)
+                else:
+                    print('Error in connectivity')
+                    sys.exit()
+        simplicity[cand]=simplicityLabel
+
+    return simplicity
 
 
+
+    ## Simple pairs ##
 
 def isSimplePair6_26(im,center,topologyList,totalLabel):
+    '''
+    Check the simplicity of a pair in multiple labels considering the object and
+    the background in 6-adjancy and 26-adjancy respectly.
+    -------------------------------
+    Input:  im              --> A multilabel image of size 4x3x3 or 3x4x3 or 3x3x4
+            center          --> Coordinates of the pair that corresponds to the
+                                center of the multilabel image
+            topologyList    --> Configuration of label topologies to be preserved
+            totalLabel      --> Number of labels
+    Output: simplicity  --> An array given the simplicity in each label
+                            (0: non-simple pair, 1: simple pair)
+    '''
     simplicity=np.zeros([totalLabel],dtype=int)
     im_c=im.copy()
-    im_c[im_c==im[center]]=-1
+    im_c[im_c==im[1,1,1]]=-1
     candidatesLabel=np.unique(im_c)[1:]
     for cand in candidatesLabel:
         simplicityLabel=1
@@ -207,9 +302,22 @@ def isSimplePair6_26(im,center,topologyList,totalLabel):
 
 
 def isSimplePair6_26Label(im,center,label,topologyList,totalLabel):
+    '''
+    Check the simplicity of a pair in multiple labels for a specific label
+    considering the object and the background in 6-adjancy and 26-adjancy respectly.
+    -------------------------------
+    Input:  im              --> A multilabel image of size 4x3x3 or 3x4x3 or 3x3x4
+            center          --> Coordinates of the pair that corresponds to the
+                                center of the multilabel image
+            label           --> Label that is evaluated
+            topologyList    --> Configuration of label topologies to be preserved
+            totalLabel      --> Number of labels
+    Output: simplicity  --> A digit that provides the simplicity for the label
+                            (0: non-simple pair, 1: simple pair)
+    '''
     simplicityLabel=0
     im_c=im.copy()
-    im_c[im_c==im[center]]=-1
+    im_c[im_c==im[1,1,1]]=-1
     candidatesLabel=np.unique(im_c)[1:]
     if label in candidatesLabel:
         simplicityLabel=1
@@ -227,9 +335,21 @@ def isSimplePair6_26Label(im,center,label,topologyList,totalLabel):
 
 
 def isSimplePair26_6(im,center,topologyList,totalLabel):
+    '''
+    Check the simplicity of a pair in multiple labels considering the object and
+    the background in 26-adjancy and 6-adjancy respectly.
+    -------------------------------
+    Input:  im              --> A multilabel image of size 4x3x3 or 3x4x3 or 3x3x4
+            center          --> Coordinates of the pair that corresponds to the
+                                center of the multilabel image
+            topologyList    --> Configuration of label topologies to be preserved
+            totalLabel      --> Number of labels
+    Output: simplicity  --> An array given the simplicity in each label
+                            (0: non-simple pair, 1: simple pair)
+    '''
     simplicity=np.zeros([totalLabel],dtype=int)
     im_c=im.copy()
-    im_c[im_c==im[center]]=-1
+    im_c[im_c==im[1,1,1]]=-1
     candidatesLabel=np.unique(im_c)[1:]
     for cand in candidatesLabel:
         simplicityLabel=1
@@ -247,9 +367,22 @@ def isSimplePair26_6(im,center,topologyList,totalLabel):
     return simplicity
 
 def isSimplePair26_6Label(im,center,label,topologyList,totalLabel):
+    '''
+    Check the simplicity of a pair in multiple labels for a specific label
+    considering the object and the background in 26-adjancy and 6-adjancy respectly.
+    -------------------------------
+    Input:  im              --> A multilabel image of size 4x3x3 or 3x4x3 or 3x3x4
+            center          --> Coordinates of the pair that corresponds to the
+                                center of the multilabel image
+            label           --> Label that is evaluated
+            topologyList    --> Configuration of label topologies to be preserved
+            totalLabel      --> Number of labels
+    Output: simplicity  --> A binary number given the simplicity for the label
+                            (0: non-simple pair, 1: simple pair)
+    '''
     simplicityLabel=0
     im_c=im.copy()
-    im_c[im_c==im[center]]=-1
+    im_c[im_c==im[1,1,1]]=-1
     candidatesLabel=np.unique(im_c)[1:]
     if label in candidatesLabel:
         simplicityLabel=1
@@ -263,4 +396,45 @@ def isSimplePair26_6Label(im,center,label,topologyList,totalLabel):
                 im_c+=1*(im==t)
             if (len(np.unique(im_c))>1):
                 simplicityLabel*=isBinarySimplePair26_6(im_c,center)
+    return simplicityLabel
+
+
+def isSimplePairConnLabel(im,center,label,topologyList,connectivityList,totalLabel):
+    '''
+    Check the simplicity of a pair in multiple labels for a specific label
+    given the connectivity configuration (only available in 6/26 or 26/6).
+    -------------------------------
+    Input:  im                  --> A multilabel image of size 4x3x3 or 3x4x3 or 3x3x4
+            center              --> Coordinates of the pair that corresponds to the
+                                    center of the multilabel image
+            label               --> Label that is evaluated
+            topologyList        --> Configuration of label topologies to be preserved
+            connectivityList    --> Configuration of label connectivity
+            totalLabel          --> Number of labels
+    Output: simplicity  --> A binary number given the simplicity for the label
+                            (0: non-simple pair, 1: simple pair)
+    '''
+    simplicityLabel=0
+    im_c=im.copy()
+    im_c[im_c==im[1,1,1]]=-1
+    candidatesLabel=np.unique(im_c)[1:]
+    if label in candidatesLabel:
+        simplicityLabel=1
+        ## Discard when current label and evalued label are in a topology group or there are not at all ##
+        topoResList=[topo for topo in topologyList if ((label in topo) + (im[1,1,1] in topo))==1]
+        ## Evaluate label simplicity in each topology ##
+        for topo in topoResList:
+            im_c=np.zeros(im.shape)
+            ## Evaluation of all labels ##
+            for t in topo:
+                im_c+=1*(im==t)
+            if (len(np.unique(im_c))>1):
+                if connectivityList[topologyList.index(topo)]==26:
+                    simplicityLabel*=isBinarySimplePair26_6(im_c,center)
+                elif connectivityList[topologyList.index(topo)]==6:
+                    simplicityLabel*=isBinarySimplePair6_26(im_c,center)
+                else:
+                    print('Error in connectivity')
+                    sys.exit()
+
     return simplicityLabel
