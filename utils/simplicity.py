@@ -114,7 +114,6 @@ def isBinarySimplePair6_26(im,center):
     return 0
 
 
-
 def isBinarySimplePair26_6(im,center):
     '''
     Check the simplicity of a pair in a binary image considering the object and
@@ -195,6 +194,7 @@ def isSimple6_26(im,topologyList,totalLabel):
         simplicity[cand]=simplicityLabel
     return simplicity
 
+
 def isSimple26_6(im,topologyList,totalLabel):
     '''
     Check the simplicity of a point in multiple labels considering the object and
@@ -223,7 +223,6 @@ def isSimple26_6(im,topologyList,totalLabel):
                 simplicityLabel*=isBinarySimplePoint26_6(im_c)
         simplicity[cand]=simplicityLabel
     return simplicity
-
 
 
 def isSimpleConn(im,topologyList,connectivityList,totalLabel):
@@ -365,6 +364,7 @@ def isSimplePair26_6(im,center,topologyList,totalLabel):
                 simplicityLabel*=isBinarySimplePair26_6(im_c,center)
         simplicity[cand]=simplicityLabel
     return simplicity
+
 
 def isSimplePair26_6Label(im,center,label,topologyList,totalLabel):
     '''
