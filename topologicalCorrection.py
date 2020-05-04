@@ -13,9 +13,7 @@ from utils.simplicity import isSimpleConn, isSimple26_6
 from utils.sampling import changeVoxelSizeInAffineMatrix, upsampling3D, downsamplingMean3D, \
 						downsamplingMean4D, downsamplingGauss3D, downsamplingGauss4D
 from utils.distances import computeBenefitPosDistance, computeBenefitPairPosDistance, \
-			computeBenefitPosGradientDistance, computeBenefitPosSimilarity, computeBenefitPairPosSimilarity, \
-			computeGaussianDistanceMap, computeFastMarchingGaussianDistanceMap, computeDilationFastMarchingGaussianDistanceMap,\
-			computeThicknessDistance, computeThicknessStructure, computeThicknessMap, computeFastMarchingGaussianErosionGMDistanceMap
+					computeBenefitPosSimilarity, computeFastMarchingGaussianDistanceMap
 from utils.concentricLabels import constructIlabelByCentroidSref, constructSref
 from utils.initialisation import initNeg, initAtlasNeg, initPosConn, initAtlasPosConn, computeHomogeneousArea
 from evaluation.topologicalTools import checkConnectedComponents, computeBettiNumbers
@@ -76,23 +74,24 @@ def updateMapsPos(IlabelPatch,SrefPatch,simpleMapPatch,benefitMapPatch,distanceM
 
 if __name__ == '__main__':
 	'''
-	This python script provide a topological correction given a set of segmentation
-	maps (the segmentation of reference). The correction is based on a deformation
-	by preserving the topology. It needs an image with a desired topology (image
-	of labels) which is	going to deformated in order to be similar to the
+	This python script provides a topological correction given a set of segmentation
+	maps (segmentation of reference). The correction is based on a topological-
+	preserving deformation. It needs an image with a target topology (image
+	of labels) which is	going to be deformated in order to be similar to the
 	segmentation of reference. The method uses two strategies: the multilabel and
 	the multiscale. As optional, there is a local relaxation of the topology
-	provided by a prior map that allow to adapt the initial topology to the desired
-	object topology.
+	provided by a prior map that allows the algorithm to adapt the initial topology
+	to the target object topology.
 
 	Example of utilisation in your terminal:
 
 		python neoSeg/topologicalCorrection.py  -sref  neoSeg/examples/31_wm.nii.gz
-			neoSeg/examples/31_ribbon_cortex.nii.gz -opath neoSeg/results
-			-spath neoSeg/topology/intermediate -rp neoSeg/31_brainstem_drawem.nii.gz
+			neoSeg/examples/31_ribbon_cortex.nii.gz -rp neoSeg/31_brainstem_drawem.nii.gz
+			-opath neoSeg/results -spath neoSeg/topology/intermediate
 
 		Note: A set of files for a demonstration is available in the repository
-			'github.com/rousseau/neoSeg/examples'. In order to check obtained results, they are available in 'github.com/rousseau/neoSeg/results'
+			'github.com/rousseau/neoSeg/examples'. In order to check obtained
+			results, they are available in 'github.com/rousseau/neoSeg/results'
 	'''
 
 

@@ -85,7 +85,7 @@ python neoSeg/patchBasedSegmentation.py  -i  brain.nii.gz -a  atlas1_registered_
 Example of topological correction using two segmentation maps (White Matter and cortical Gray Matter) as segmentation of reference and an atlas prior of the brainstem in order to apply a topological relaxation. Most relevant defaults parameters are to add the background as an extra label, start the correction with omega = 2, apply the relaxation step in omega = 1, stop the correction in omega = 0 and consider a connectivity 6-26 (6:WM and GM, 26:background).
 
 ```
-python neoSeg/topologicalCorrection.py  -sref  neoSeg/examples/31_wm.nii.gz  neoSeg/examples/31_ribbon_cortex.nii.gz -opath neoSeg/results  -spath neoSeg/topology/intermediate -rp neoSeg/31_brainstem_drawem.nii.gz
+python neoSeg/topologicalCorrection.py  -sref  neoSeg/examples/31_wm.nii.gz  neoSeg/examples/31_ribbon_cortex.nii.gz -rp neoSeg/31_brainstem_drawem.nii.gz -opath neoSeg/results  -spath neoSeg/topology/intermediate
 ```
 
 **sref**: input segmentation maps to be corrected (multiple entries are accepted)
