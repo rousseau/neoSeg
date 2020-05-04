@@ -1,27 +1,23 @@
 # coding=utf-8
-
-# import matplotlib.pyplot as plt
 import os,sys
 import numpy as np
-import math
 import nibabel
 import random
 import argparse
 from scipy import ndimage
-from numba import jit
 from time import time
-from skimage import morphology,feature,measure
+from skimage import morphology, feature, measure
 import skfmm
+
 from utils.simplicity import isSimpleConn, isSimple26_6
-from utils.sampling import changeVoxelSizeInAffineMatrix, upsampling3D, downsamplingMean3D, downsamplingMean4D, downsamplingGauss3D, downsamplingGauss4D
-from utils.distances import computeBenefitPosDistance, computeBenefitPairPosDistance, computeBenefitPosGradientDistance, computeBenefitPosSimilarity, computeBenefitPairPosSimilarity, \
+from utils.sampling import changeVoxelSizeInAffineMatrix, upsampling3D, downsamplingMean3D, \
+						downsamplingMean4D, downsamplingGauss3D, downsamplingGauss4D
+from utils.distances import computeBenefitPosDistance, computeBenefitPairPosDistance, \
+			computeBenefitPosGradientDistance, computeBenefitPosSimilarity, computeBenefitPairPosSimilarity, \
 			computeGaussianDistanceMap, computeFastMarchingGaussianDistanceMap, computeDilationFastMarchingGaussianDistanceMap,\
 			computeThicknessDistance, computeThicknessStructure, computeThicknessMap, computeFastMarchingGaussianErosionGMDistanceMap
 from utils.concentricLabels import constructIlabelByCentroidSref, constructSref
-from utils.initialisation import initPos26_6, initAtlasPos26_6, \
-								initNeg, initAtlasNeg, \
-								initPosConn, initAtlasPosConn, \
-								computeHomogeneousArea
+from utils.initialisation import initNeg, initAtlasNeg, initPosConn, initAtlasPosConn, computeHomogeneousArea
 from evaluation.topologicalTools import checkConnectedComponents, computeBettiNumbers
 
 
@@ -35,11 +31,11 @@ def updateMapsPos(IlabelPatch,SrefPatch,simpleMapPatch,benefitMapPatch,distanceM
 	'''
     Update the simple point and beneficit maps
     -------------------------------
-    Input:  IlabelPatch 		--> A image of labels patch of size 4x4x4 vx
-            SrefPatch 			--> A segmentation of reference patch of size 3x3x3 vx
-			simpleMapPatch		--> A simple point map patch of size 3x3x3 vx
-			benefitMapPatch		--> A benefit map patch of size 3x3x3 vx
-			distanceMapPatch	--> A distance transform map patch of size 3x3x3 vx
+    Input:  IlabelPatch 		--> Image of labels patch of size 4x4x4 vx
+            SrefPatch 			--> Segmentation of reference patch of size 3x3x3x{totalLabel} vx
+			simpleMapPatch		--> Simple point map patch of size 3x3x3x{totalLabel} vx
+			benefitMapPatch		--> Benefit map patch of size 3x3x3 vx
+			distanceMapPatch	--> Distance transform map patch of size 3x3x3 vx
 			topologyList		--> Configuration of label topologies to be preserved
 			connectivityList	--> Configuration of label connectivities (6 or 26)
 			totalLabel			--> Number of labels
@@ -47,30 +43,33 @@ def updateMapsPos(IlabelPatch,SrefPatch,simpleMapPatch,benefitMapPatch,distanceM
     Output: simpleMapPatch	--> Simple point map patch updated
 			benefitMapPatch --> Benefit map patch updated
     '''
-	benefitMapPatch[:]=0
-	benefitMapPatch[:]=0
-	if metric=='similarity':
+	simpleMapPatch[:] = 0
+	benefitMapPatch[:] = 0
+	if metric == 'similarity':
 		for ii in range(SrefPatch.shape[0]):
 			for jj in range(SrefPatch.shape[1]):
 				for kk in range(SrefPatch.shape[2]):
 					## update simpleMap ##
-					simpleMapPatch[ii,jj,kk,:]=isSimpleConn(IlabelPatch[ii:ii+3,jj:jj+3,kk:kk+3],topologyList,connectivityList,totalLabel) ###NEW###
+					simpleMapPatch[ii,jj,kk,:] = isSimpleConn(IlabelPatch[ii:ii+3,jj:jj+3,kk:kk+3],topologyList,connectivityList,totalLabel) ###NEW###
 					### update benefitMap ##
 					for ll in range(totalLabel):
-						if simpleMapPatch[ii,jj,kk,ll]==1:
-							benefitMapPatch[ii,jj,kk,ll]=computeBenefitPosSimilarity(IlabelPatch[ii+1,jj+1,kk+1],SrefPatch[ii,jj,kk,:],ll,totalLabel)
-	elif metric=='distanceMap':
+						if simpleMapPatch[ii,jj,kk,ll] == 1:
+							benefitMapPatch[ii,jj,kk,ll] = computeBenefitPosSimilarity(IlabelPatch[ii+1,jj+1,kk+1],SrefPatch[ii,jj,kk,:],ll,totalLabel)
+	elif metric == 'distanceMap':
 		for ii in range(SrefPatch.shape[0]):
 			for jj in range(SrefPatch.shape[1]):
 				for kk in range(SrefPatch.shape[2]):
 					## update simpleMap ##
-					simpleMapPatch[ii,jj,kk,:]=isSimpleConn(IlabelPatch[ii:ii+3,jj:jj+3,kk:kk+3],topologyList,connectivityList,totalLabel) ###NEW###
+					simpleMapPatch[ii,jj,kk,:] = isSimpleConn(IlabelPatch[ii:ii+3,jj:jj+3,kk:kk+3],topologyList,connectivityList,totalLabel) ###NEW###
 					### update benefitMap ##
 					for ll in range(totalLabel):
-						if simpleMapPatch[ii,jj,kk,ll]==1:
-							benefitMapPatch[ii,jj,kk,ll]=distanceMapPatch[ii,jj,kk,IlabelPatch[ii+1,jj+1,kk+1]]-distanceMapPatch[ii,jj,kk,ll]
+						if simpleMapPatch[ii,jj,kk,ll] == 1:
+							benefitMapPatch[ii,jj,kk,ll] = distanceMapPatch[ii,jj,kk,IlabelPatch[ii+1,jj+1,kk+1]]-distanceMapPatch[ii,jj,kk,ll]
 
 	return simpleMapPatch,benefitMapPatch
+
+
+
 
 
 
@@ -88,16 +87,16 @@ if __name__ == '__main__':
 
 	Example of utilisation in your terminal:
 
-		python neoSeg/topologicalCorrection.py  -sref  neoSeg/examples/31_ribbon_wm.nii.gz
+		python neoSeg/topologicalCorrection.py  -sref  neoSeg/examples/31_wm.nii.gz
 			neoSeg/examples/31_ribbon_cortex.nii.gz -opath neoSeg/results
 			-spath neoSeg/topology/intermediate -rp neoSeg/31_brainstem_drawem.nii.gz
 
-		Note: A set of files for a demostration is available in the repository
+		Note: A set of files for a demonstration is available in the repository
 			'github.com/rousseau/neoSeg/examples'. In order to check obtained results, they are available in 'github.com/rousseau/neoSeg/results'
 	'''
 
 
-	t0=time()
+	t0 = time()
 	np.seterr(divide='ignore', invalid='ignore')
 	parser = argparse.ArgumentParser(prog='topologicalCorrection')
 
@@ -121,7 +120,7 @@ if __name__ == '__main__':
 	parser.add_argument('-rcl', '--relaxConnectivityList', help='Configuration of label connectivity (6 or 26) for the topological relaxation', type=str, default=[6,6,26,26], nargs='*', required=False)
 	parser.add_argument('-ssv', '--stepSave', help='Save intermediate steps (0: no, 1: yes)', type=int, default=1, required=False)
 	parser.add_argument('-sdef', '--stepDefine', help='Define the step (in number of iterations)', type=int, default=1000, required=False)
-	parser.add_argument('-spath', '--stepPath', help='step path', type=str, default='steps', required=False)
+	parser.add_argument('-spath', '--stepPath', help='Step path', type=str, default='steps', required=False)
 	parser.add_argument('-ba', '--base', help='Base parameter which increase the scale in each step', type=int, default=2, required=False)
 	parser.add_argument('-p', '--padding', help='Padding parameter for avoiding issues in the simple point search', type=int, default=1, required=False)
 
@@ -177,14 +176,14 @@ if __name__ == '__main__':
 	else:
 		stdGaussian = args.stdGaussian
 
-	if args.padding<1:
+	if args.padding < 1:
 		print('ERROR: Padding parameter must be greater than 0.')
 		sys.exit()
 	else:
 		padding = args.padding
 
-	padding3D=[(padding,padding),(padding,padding),(padding,padding)]
-	padding4D=[(padding,padding),(padding,padding),(padding,padding),(0,0)]
+	padding3D = [(padding,padding),(padding,padding),(padding,padding)]
+	padding4D = [(padding,padding),(padding,padding),(padding,padding),(0,0)]
 
 
 
@@ -248,7 +247,7 @@ if __name__ == '__main__':
 		header = changeVoxelSizeInAffineMatrix(header,2**omegaInitial)
 		initialization = args.initialization
 
-	if args.stepSave==1:
+	if args.stepSave == 1:
 		nibabel.save(nibabel.Nifti1Image(Ilabel.astype(float),header),outputPath+'/Ilabel_'+str(totalLabel)+'labels_'+initialization+'_omega'+str(omegaInitial)+'.nii.gz')
 		nibabel.save(nibabel.Nifti1Image(Sref,header),outputPath+'/Sref_'+str(totalLabel)+'labels_omega'+str(omegaInitial)+'.nii.gz')
 
@@ -258,7 +257,7 @@ if __name__ == '__main__':
 
 
 
-	if args.relaxPrior!='no':
+	if args.relaxPrior != 'no':
 		try:
 			relaxPriorMap = nibabel.load(args.relaxPrior).get_data()
 		except:
@@ -365,8 +364,8 @@ if __name__ == '__main__':
 				tmp = Ilabel[padding:-padding,padding:-padding,padding:-padding]
 				nibabel.save(nibabel.Nifti1Image(tmp.astype(float),header),stepPath+'/'+str(int(loops/stepDefine))+'iter_Ilabel_'+str(totalLabel)+'labels_'+initialization+'_omega'+str(omega)+'.nii.gz')
 
-			pt=np.where(benefitMap==np.max(benefitMap))
-			sel=random.randrange(len(pt[0]))
+			pt = np.where(benefitMap == np.max(benefitMap))
+			sel = random.randrange(len(pt[0]))
 			## Update values ##
 			Ilabel[pt[0][sel],pt[1][sel],pt[2][sel]]=pt[3][sel]
 			simpleMap[pt[0][sel]-1:pt[0][sel]+2,pt[1][sel]-1:pt[1][sel]+2,pt[2][sel]-1:pt[2][sel]+2,:], \
@@ -378,7 +377,7 @@ if __name__ == '__main__':
 				distanceMap[pt[0][sel]-1:pt[0][sel]+2,pt[1][sel]-1:pt[1][sel]+2,pt[2][sel]-1:pt[2][sel]+2,:], \
 				topologyList,connectivityList,totalLabel,metric)
 
-			loops+=1
+			loops += 1
 
 		print('While time '+str(time()-t))
 
@@ -403,8 +402,8 @@ if __name__ == '__main__':
 					tmp = Ilabel[padding:-padding,padding:-padding,padding:-padding]
 					nibabel.save(nibabel.Nifti1Image(tmp.astype(float),header),stepPath+'/'+str(int(loops/stepDefine))+'iter_Ilabel_'+str(totalLabel)+'labels_'+initialization+'_omega'+str(omega)+'_relaxMode.nii.gz')
 
-				pt=np.where(benefitMap==np.max(benefitMap))
-				sel=random.randrange(len(pt[0]))
+				pt = np.where(benefitMap==np.max(benefitMap))
+				sel = random.randrange(len(pt[0]))
 				## Update values ##
 				prevIlabel = Ilabel[pt[0][sel],pt[1][sel],pt[2][sel]]
 				Ilabel[pt[0][sel],pt[1][sel],pt[2][sel]] = pt[3][sel]
@@ -428,7 +427,7 @@ if __name__ == '__main__':
 						distanceMap[pt[0][sel]-1:pt[0][sel]+2,pt[1][sel]-1:pt[1][sel]+2,pt[2][sel]-1:pt[2][sel]+2,:], \
 						relaxTopologyList,relaxConnectivityList,totalLabel,metric)
 
-				loops+=1
+				loops += 1
 
 			print('While time '+str(time()-t))
 

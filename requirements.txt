@@ -5,3 +5,8 @@ numba
 matplotlib
 scikit-image
 scikit-fmm
+random
+argparse
+time
+itertools
+multiprocessing

@@ -1,5 +1,4 @@
 # coding=utf-8
-
 import sys
 import nibabel
 import numpy as np
@@ -145,7 +144,7 @@ def computeDistanceMap(fuzzyLabels,padding,totalLabel,mode='threshold',threshold
 	return distanceMap
 
 
-def computeGaussianDistanceMap(fuzzyLabels,stdGaussian,padding,omega,totalLabel,mode='threshold',threshold=0):
+def computeGaussianDistanceMap(fuzzyLabels,stdGaussian,padding,omega,base,totalLabel,mode='threshold',threshold=0):
 	'''
     Compute the distance transform of a label given a 4D image of probabilistic labels and
 	a mode of binarisation, and resample using a Gaussian filter.
@@ -153,8 +152,9 @@ def computeGaussianDistanceMap(fuzzyLabels,stdGaussian,padding,omega,totalLabel,
     Input:  fuzzyLabels 	--> Image of labels
 			stdGaussian		--> Standard deviation of the Gaussian filter
             padding   		--> Padding added to the result
-			omega			--> Factor of downsampling, 2^{omega} (omega is considered
-								poditive)
+			omega			--> Factor of downsampling, 2^{omega} (omega is
+								considered positive)
+			base			--> Base parameter of increase the scale in each step
             totalLabel      --> Number of labels
 			mode			--> Method of binarisation ('majorityVoting',
 								'threshold' or 'fuzzy')
